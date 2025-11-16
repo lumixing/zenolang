@@ -38,6 +38,7 @@ Pointer :: distinct uint
 Variadic :: distinct uint
 
 BasicType :: enum {
+	bool,
 	string,
 	u8,
 	u32,
@@ -88,6 +89,7 @@ ExprAtom :: union #no_nil {
 Literal :: union #no_nil {
 	string,
 	int,
+	bool,
 }
 
 Ident :: distinct string

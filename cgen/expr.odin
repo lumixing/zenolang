@@ -52,6 +52,7 @@ expr_atom_str :: proc(state: ^State, expr_atom: ExprAtom) -> string {
 Literal :: union #no_nil {
 	string,
 	int,
+	bool,
 }
 
 literal_str :: proc(lit: Literal) -> string {
@@ -60,6 +61,8 @@ literal_str :: proc(lit: Literal) -> string {
 		return afmt("%q", lit)
 	case int:
 		return afmt("%d", lit)
+	case bool:
+		return afmt("%s", lit ? "true" : "false")
 	}
 
 	unreach()

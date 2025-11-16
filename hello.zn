@@ -1,6 +1,16 @@
 #foreign("stdio.h") printf(fmt string, args ..any) u32
 
+print_bool(v bool) void {
+	printf("%db\n", v)
+}
+
 main(a u32, b ^^u8) u32 {
+	swag bool = true
+	bitch bool = false
+
+	print_bool(swag)
+	print_bool(bitch)
+
 	age u32 = 19
 	name string = "lumix"
 	uno u32 = one()

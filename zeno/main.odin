@@ -41,6 +41,8 @@ main :: proc() {
 
 	includes["stdint.h"] = true
 	cgen.include(&state, "stdint.h", .Bracket)
+	includes["stdbool.h"] = true
+	cgen.include(&state, "stdbool.h", .Bracket)
 
 	// includes
 	for top_stmt in prs.top_stmts[:] {
@@ -158,6 +160,7 @@ expr_atom_to_c :: proc(state: ^cgen.State, expr_atom: ExprAtom) -> cgen.ExprAtom
 		switch lit in atom {
 		case string: return cgen.Literal(lit)
 		case int:    return cgen.Literal(lit)
+		case bool:   return cgen.Literal(lit)
 		}
 	case Ident: return cgen.Ident(atom)
 	case FuncCall:
@@ -182,6 +185,7 @@ type_to_c :: proc(info: ^Info, state: ^cgen.State, type: Type) -> cgen.Type {
 		case .string: return cgen.type_ptr(state, .char)
 		case .u8:     return .uint8_t
 		case .u32:    return .uint32_t
+		case .bool:   return .bool
 		case .any:    unimplemented()
 		}
 	case UserType: unimplemented()

@@ -69,6 +69,11 @@ lexer_scan :: proc(lexer: ^Lexer, input: []u8, allocator := context.allocator) -
 				case "any":    lexer_add_token(lexer, .KW_any)
 				case "u8":     lexer_add_token(lexer, .KW_u8)
 				case "u32":    lexer_add_token(lexer, .KW_u32)
+				case "bool": lexer_add_token(lexer, .KW_bool)
+				case "true": lexer_add_token(lexer, .KW_true)
+				case "false": lexer_add_token(lexer, .KW_false)
+				case "for": lexer_add_token(lexer, .KW_for)
+				case "if": lexer_add_token(lexer, .KW_if)
 				case "return": lexer_add_token(lexer, .KW_return)
 				case:          lexer_add_token(lexer, .Ident, lexeme)
 				}

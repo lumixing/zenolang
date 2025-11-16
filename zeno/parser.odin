@@ -155,6 +155,7 @@ prs_type :: proc(prs: ^Parser, allocator := context.allocator) -> (type: Type, e
 	case .KW_any:    type = .any
 	case .KW_u8:     type = .u8
 	case .KW_u32:    type = .u32
+	case .KW_bool:   type = .bool
 	case:
 		error = prs_error(prs, "Expected type but got %v (%v)", token.type, token.value)
 	}
@@ -306,6 +307,12 @@ prs_expr :: proc(prs: ^Parser, allocator := context.allocator) -> (expr: Expr, e
 			_ = prs_eat(prs) or_return
 			append(&dyn_expr, Ident(token.value.(string)))
 		}
+	case .KW_true:
+		_ = prs_eat(prs) or_return
+		append(&dyn_expr, Literal(true))
+	case .KW_false:
+		_ = prs_eat(prs) or_return
+		append(&dyn_expr, Literal(false))
 	case:
 		error = prs_error(prs, "Expected expression but got %v (%v)", token.type, token.value)
 		return
