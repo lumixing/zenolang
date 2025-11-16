@@ -11,6 +11,8 @@ main(a u32, b ^^u8) u32 {
 	print_bool(swag)
 	print_bool(bitch)
 
+	printf("%d %d %d\n", swag, !swag, !!swag)
+
 	age u32 = 19
 	name string = "lumix"
 	uno u32 = one()

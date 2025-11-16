@@ -71,6 +71,7 @@ literal_str :: proc(lit: Literal) -> string {
 Ident :: distinct string
 
 Unop :: enum {
+	Not,
 	Neg,
 	Inc,
 	Decr,
@@ -81,6 +82,7 @@ Unop :: enum {
 
 unop_str :: proc(unop: Unop) -> string {
 	switch unop {
+	case .Not:        return "!"
 	case .Neg:        return "-"
 	case .Inc:        return "++"
 	case .Decr:       return "--"

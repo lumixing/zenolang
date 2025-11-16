@@ -17,6 +17,7 @@ TokenType :: enum {
 	Hash,
 	Caret = '^', // omg pls try this idea i beg you
 	Eq,
+	Exclaim,
 
 	Ident,
 	String,

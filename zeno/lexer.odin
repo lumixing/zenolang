@@ -30,6 +30,7 @@ lexer_scan :: proc(lexer: ^Lexer, input: []u8, allocator := context.allocator) -
 		case '#':  lexer_add_token(lexer, .Hash)
 		case '^':  lexer_add_token(lexer, .Caret)
 		case '=':  lexer_add_token(lexer, .Eq)
+		case '!':  lexer_add_token(lexer, .Exclaim)
 		case '.':
 			if (lexer_peek(lexer) or_return) == '.' {
 				lexer_eat(lexer) or_return

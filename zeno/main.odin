@@ -6,8 +6,10 @@ import "core:c/libc"
 import "core:fmt"
 import "../cgen"
 
+FILE :: "hello.zn"
+
 main :: proc() {
-	file := #load("../hello.zn")
+	file := #load("../" + FILE)
 	lexer: Lexer
 	err := lexer_scan(&lexer, file)
 	if err, ok := err.?; ok {
@@ -24,7 +26,8 @@ main :: proc() {
 	prs: Parser
 	err2 := prs_parse(&prs, &info, lexer.tokens[:])
 	if err, ok := err2.?; ok {
-		fmt.println(err.message)
+		line, col := span_to_line_col(file, prs.tokens[err.span.hi].span)
+		fmt.printfln(FILE + ":%d:%d: %s\n(%v)", line, col, err.message, err.loc)
 		return
 	}
 	//fmt.printfln("%#v", prs.top_stmts[:])
@@ -155,14 +158,20 @@ expr_to_c :: proc(state: ^cgen.State, expr: Expr) -> cgen.Expr {
 
 expr_atom_to_c :: proc(state: ^cgen.State, expr_atom: ExprAtom) -> cgen.ExprAtom {
 	switch atom in expr_atom {
-	case Expr: unimplemented()
+	case Expr:
+		return cgen.Expr(expr_to_c(state, atom))
+	case Unop:
+		switch atom {
+		case .Not: return .Not
+		}
 	case Literal:
 		switch lit in atom {
 		case string: return cgen.Literal(lit)
 		case int:    return cgen.Literal(lit)
 		case bool:   return cgen.Literal(lit)
 		}
-	case Ident: return cgen.Ident(atom)
+	case Ident:
+		return cgen.Ident(atom)
 	case FuncCall:
 		return cgen.FuncCall{
 			name = atom.name,
