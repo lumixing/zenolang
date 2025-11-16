@@ -1,0 +1,33 @@
+#foreign("stdio.h") printf(fmt string, args ..any) u32
+
+main(a u32, b ^^u8) u32 {
+	age u32 = 19
+	name string = "lumix"
+	uno u32 = one()
+	print_int(69420)
+	print_int(uno)
+	print_int(identity(67))
+	print_int(identity(identity(uno)))
+	printf("welcome\n")
+	greet(name)
+	greet("me")
+	printf("bye bye\n")
+
+	return 69
+}
+
+greet(user string) void {
+	printf("hello %s!\n", user)
+}
+
+print_int(v u32) void {
+	printf("%d\n", v)
+}
+
+one() u32 {
+	return 1
+}
+
+identity(x u32) u32 {
+	return x
+}
