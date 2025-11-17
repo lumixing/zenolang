@@ -181,6 +181,12 @@ expr_atom_to_c :: proc(state: ^cgen.State, expr_atom: ExprAtom) -> cgen.ExprAtom
 	case Unop:
 		switch atom {
 		case .Not: return .Not
+		case .Neg: return .Neg
+		}
+	case Binop:
+		switch atom {
+		case .Add: return .Add
+		case .LessThan: return .LessThan
 		}
 	case Literal:
 		switch lit in atom {

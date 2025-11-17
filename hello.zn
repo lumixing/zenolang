@@ -1,59 +1,13 @@
 #foreign("stdio.h") printf(fmt string, args ..any) u32
 
-print_bool(v bool) void {
-	printf("%db\n", v)
+main() void {
+	printf("%d\n", fib(12))
 }
 
-main(a u32, b ^^u8) u32 {
-	swag bool = !!true
-	bitch bool = false
-	flag bool = true
-
-	print_bool(swag)
-	print_bool(bitch)
-
-
-	if swag {
-		printf("$wag\n")
+fib(n u32) u32 {
+	if n < 2 {
+		return n
 	}
 
-	if !swag {
-		printf("ur a bitch\n")
-	}
-
-	if !!swag {
-		printf("$$$wag\n")
-	}
-
-	printf("%d %d %d\n", swag, !swag, !!swag)
-
-	age u32 = 19
-	name string = "lumix"
-	uno u32 = one()
-	print_int(69420)
-	print_int(uno)
-	print_int(identity(67))
-	print_int(identity(identity(uno)))
-	printf("welcome\n")
-	greet(name)
-	greet("me")
-	printf("bye bye\n")
-
-	return 69
-}
-
-greet(user string) void {
-	printf("hello %s!\n", user)
-}
-
-print_int(v u32) void {
-	printf("%d\n", v)
-}
-
-one() u32 {
-	return 1
-}
-
-identity(x u32) u32 {
-	return x
+	return fib(n - 1) + fib(n - 2)
 }

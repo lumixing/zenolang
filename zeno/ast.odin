@@ -103,6 +103,7 @@ ExprAtom :: union #no_nil {
 	Ident,
 	FuncCall,
 	Unop, // i just had a revolation, what if Unop/Binop was distinct Expr
+	Binop,
 }
 
 Literal :: union #no_nil {
@@ -115,4 +116,10 @@ Ident :: distinct string
 
 Unop :: enum {
 	Not,
+	Neg,
+}
+
+Binop :: enum {
+	LessThan,
+	Add,
 }

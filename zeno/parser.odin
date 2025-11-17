@@ -368,8 +368,14 @@ prs_expr_atom :: proc(prs: ^Parser, allocator := context.allocator) -> (expr_ato
 	token := prs_eat(prs) or_return
 	
 	#partial switch token.type {
+	case .LessThan:
+		expr_atom = .LessThan
 	case .Exclaim:
-		expr_atom = Unop.Not
+		expr_atom = .Not
+	case .Plus:
+		expr_atom = .Add
+	case .Hyphen:
+		expr_atom = .Neg
 	case .String:
 		expr_atom = Literal(token.value.(string))
 	case .Integer:

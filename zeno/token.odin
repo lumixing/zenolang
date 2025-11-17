@@ -18,6 +18,10 @@ TokenType :: enum {
 	Caret = '^', // omg pls try this idea i beg you
 	Eq,
 	Exclaim,
+	Plus,
+	Hyphen,
+
+	LessThan,
 
 	Ident,
 	String,
