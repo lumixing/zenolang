@@ -60,6 +60,9 @@ Stmt :: union {
 	FuncCall,
 	Return,
 	VarDef,
+	While,
+	If,
+	Assign,
 }
 
 FuncCall :: struct {
@@ -75,6 +78,21 @@ VarDef :: struct {
 	name: string,
 	type: Type,
 	value: Expr,
+}
+
+While :: struct {
+	cond: Expr,
+	body: Block,
+}
+
+If :: struct {
+	cond: Expr,
+	body: Block,
+}
+
+Assign :: struct {
+	lhs: Expr,
+	rhs: Expr,
 }
 
 Expr :: distinct []ExprAtom

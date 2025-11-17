@@ -89,25 +89,7 @@ main :: proc() {
 				.Brace,
 			)
 
-			for stmt in tstmt.body {
-				switch stmt in stmt {
-				case FuncCall:
-					cgen.func_call(&state, 1, stmt.name, args_to_c(&state, stmt.args))
-				case VarDef:
-					cgen.var_def(
-						&state, 1,
-						type_to_c(&info, &state, stmt.type),
-						stmt.name,
-						expr_to_c(&state, stmt.value),
-					)
-				case Return:
-					if value, ok := stmt.value.?; ok {
-						cgen.ret_expr(&state, 1, expr_to_c(&state, value))
-					} else {
-						cgen.ret(&state, 1)
-					}
-				}
-			}
+			gen_block(&info, &state, tstmt.body, 1)
 
 			cgen.brace(&state)
 			cgen.newline(&state)
@@ -117,6 +99,42 @@ main :: proc() {
 	assert(os.write_entire_file("main.c", transmute([]u8)strings.join(state.lines[:], "\n")))
 
 	libc.system("gcc main.c -o out && out.exe")
+}
+
+gen_block :: proc(info: ^Info, state: ^cgen.State, block: Block, depth: uint) {
+	for stmt in block {
+		switch stmt in stmt {
+		case Assign:
+			cgen.assign(
+				state, depth,
+				expr_to_c(state, stmt.lhs),
+				expr_to_c(state, stmt.rhs),
+			)
+		case While:
+			cgen.while(state, depth, expr_to_c(state, stmt.cond))
+			gen_block(info, state, stmt.body, depth + 1)
+			cgen.brace(state, depth)
+		case If:
+			cgen.if_(state, depth, expr_to_c(state, stmt.cond))
+			gen_block(info, state, stmt.body, depth + 1)
+			cgen.brace(state, depth)
+		case FuncCall:
+			cgen.func_call(state, depth, stmt.name, args_to_c(state, stmt.args))
+		case VarDef:
+			cgen.var_def(
+				state, depth,
+				type_to_c(info, state, stmt.type),
+				stmt.name,
+				expr_to_c(state, stmt.value),
+			)
+		case Return:
+			if value, ok := stmt.value.?; ok {
+				cgen.ret_expr(state, depth, expr_to_c(state, value))
+			} else {
+				cgen.ret(state, depth)
+			}
+		}
+	}
 }
 
 param_to_c_param :: proc(info: ^Info, state: ^cgen.State, param: Param) -> cgen.Param {

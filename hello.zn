@@ -5,11 +5,25 @@ print_bool(v bool) void {
 }
 
 main(a u32, b ^^u8) u32 {
-	swag bool = true
+	swag bool = !!true
 	bitch bool = false
+	flag bool = true
 
 	print_bool(swag)
 	print_bool(bitch)
+
+
+	if swag {
+		printf("$wag\n")
+	}
+
+	if !swag {
+		printf("ur a bitch\n")
+	}
+
+	if !!swag {
+		printf("$$$wag\n")
+	}
 
 	printf("%d %d %d\n", swag, !swag, !!swag)
 

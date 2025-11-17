@@ -56,11 +56,10 @@ check :: proc(info: ^Info, top_stmts: []TopStmt) -> Maybe(Error) {
 @(require_results)
 check_block :: proc(info: ^Info, block: Block) -> (error: Maybe(Error)) {
 	for stmt in block {
-		switch stmt in stmt {
+		// @partial
+		#partial switch stmt in stmt {
 		case FuncCall:
 			check_func_call(info, stmt) or_return
-		case VarDef: // @unimpl
-		case Return: // @unimpl
 		}
 	}
 

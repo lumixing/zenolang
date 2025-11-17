@@ -206,12 +206,18 @@ prs_stmt :: proc(prs: ^Parser, allocator := context.allocator) -> (stmt: Stmt, e
 	token := prs_peek(prs) or_return
 
 	#partial switch token.type {
+	case .KW_for:
+		stmt = prs_while(prs) or_return
+	case .KW_if:
+		stmt = prs_if(prs) or_return
 	case .Ident:
 		token_1 := prs_peek(prs, 1) or_return
 
 		#partial switch token_1.type {
 		case .LParen:
 			stmt = prs_func_call(prs) or_return
+		case .Eq:
+			stmt = prs_assign(prs) or_return
 		case:
 			// @temp: eventually ill have to do prs_is_type() or something similar
 			stmt = prs_var_def(prs) or_return
@@ -223,6 +229,34 @@ prs_stmt :: proc(prs: ^Parser, allocator := context.allocator) -> (stmt: Stmt, e
 		error = prs_error(prs, "Expected statement but got %v", token.type)
 	}
 
+	return
+}
+
+prs_while :: proc(prs: ^Parser, allocator := context.allocator) -> (while: While, error: Maybe(Error)) {
+	context.allocator = allocator
+
+	_ = prs_expect(prs, .KW_for) or_return
+	cond, _ := prs_expr(prs) or_return
+	body := prs_block(prs) or_return
+
+	while = {
+		cond = cond,
+		body = body,
+	}
+	return
+}
+
+prs_if :: proc(prs: ^Parser, allocator := context.allocator) -> (if_: If, error: Maybe(Error)) {
+	context.allocator = allocator
+
+	_ = prs_expect(prs, .KW_if) or_return
+	cond, _ := prs_expr(prs) or_return
+	body := prs_block(prs) or_return
+
+	if_ = {
+		cond = cond,
+		body = body,
+	}
 	return
 }
 
@@ -251,6 +285,20 @@ prs_func_call :: proc(prs: ^Parser, allocator := context.allocator) -> (func_cal
 	func_call = {
 		name = name,
 		args = args[:],
+	}
+	return
+}
+
+prs_assign :: proc(prs: ^Parser, allocator := context.allocator) -> (assign: Assign, error: Maybe(Error)) {
+	context.allocator = allocator
+
+	lhs, _ := prs_expr(prs) or_return
+	_ = prs_expect(prs, .Eq) or_return
+	rhs, _ := prs_expr(prs) or_return
+
+	assign = {
+		lhs = lhs,
+		rhs = rhs,
 	}
 	return
 }
@@ -350,7 +398,7 @@ prs_expr_atom :: proc(prs: ^Parser, allocator := context.allocator) -> (expr_ato
 }
 
 @(require_results)
-prs_expect :: proc(prs: ^Parser, type: TokenType, allocator := context.allocator) -> (value: TokenValue, error: Maybe(Error)) {
+prs_expect :: proc(prs: ^Parser, type: TokenType, allocator := context.allocator, loc := #caller_location) -> (value: TokenValue, error: Maybe(Error)) {
 	context.allocator = allocator
 
 	token := prs_eat(prs) or_return
@@ -358,7 +406,7 @@ prs_expect :: proc(prs: ^Parser, type: TokenType, allocator := context.allocator
 	if token.type == type {
 		value = token.value
 	} else {
-		error = prs_error(prs, "Expected %v but got %v (%v)", type, token.type, token.value)
+		error = prs_error(prs, "Expected %v but got %v (%v)", type, token.type, token.value, loc = loc)
 	}
 
 	return
