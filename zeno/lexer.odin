@@ -34,6 +34,7 @@ lexer_scan :: proc(lexer: ^Lexer, input: []u8, allocator := context.allocator) -
 		case '+':  lexer_add_token(lexer, .Plus)
 		case '-':  lexer_add_token(lexer, .Hyphen)
 		case '<':  lexer_add_token(lexer, .LessThan)
+		case '>':  lexer_add_token(lexer, .GreaterThan)
 		case '.':
 			if (lexer_peek(lexer) or_return) == '.' {
 				lexer_eat(lexer) or_return
@@ -73,6 +74,7 @@ lexer_scan :: proc(lexer: ^Lexer, input: []u8, allocator := context.allocator) -
 				case "any":    lexer_add_token(lexer, .KW_any)
 				case "u8":     lexer_add_token(lexer, .KW_u8)
 				case "u32":    lexer_add_token(lexer, .KW_u32)
+				case "i32":    lexer_add_token(lexer, .KW_i32)
 				case "bool": lexer_add_token(lexer, .KW_bool)
 				case "true": lexer_add_token(lexer, .KW_true)
 				case "false": lexer_add_token(lexer, .KW_false)

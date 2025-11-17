@@ -22,6 +22,7 @@ TokenType :: enum {
 	Hyphen,
 
 	LessThan,
+	GreaterThan,
 
 	Ident,
 	String,
@@ -32,6 +33,7 @@ TokenType :: enum {
 	KW_any,
 	KW_u8,
 	KW_u32,
+	KW_i32,
 	KW_bool,
 	KW_true,
 	KW_false,

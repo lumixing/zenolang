@@ -42,6 +42,7 @@ BasicType :: enum {
 	string,
 	u8,
 	u32,
+	i32,
 	void,
 	any,
 }
@@ -121,5 +122,6 @@ Unop :: enum {
 
 Binop :: enum {
 	LessThan,
+	GreaterThan,
 	Add,
 }

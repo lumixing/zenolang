@@ -53,9 +53,16 @@ main :: proc() {
 		case Directive:
 			switch dir in tstmt {
 			case DirectiveForeign:
-				if dir.filename not_in includes {
-					includes[dir.filename] = true
-					cgen.include(&state, dir.filename, .Bracket)
+				if dir.filename[0] == '!' {
+					if dir.filename[1:] not_in includes {
+						includes[dir.filename[1:]] = true
+						cgen.include(&state, dir.filename[1:], .Quote)
+					}
+				} else {
+					if dir.filename not_in includes {
+						includes[dir.filename] = true
+						cgen.include(&state, dir.filename, .Bracket)
+					}
 				}
 			}
 		}
@@ -98,7 +105,7 @@ main :: proc() {
 
 	assert(os.write_entire_file("main.c", transmute([]u8)strings.join(state.lines[:], "\n")))
 
-	libc.system("gcc main.c -o out && out.exe")
+	libc.system(`gcc main.c -o out -L"C:\Users\lumix\scoop\apps\raylib-mingw\5.5\raylib-5.5_win64_mingw-w64\lib" -lraylib -lopengl32 -lgdi32 -lwinmm && out.exe`)
 }
 
 gen_block :: proc(info: ^Info, state: ^cgen.State, block: Block, depth: uint) {
@@ -187,6 +194,7 @@ expr_atom_to_c :: proc(state: ^cgen.State, expr_atom: ExprAtom) -> cgen.ExprAtom
 		switch atom {
 		case .Add: return .Add
 		case .LessThan: return .LessThan
+		case .GreaterThan: return .GreaterThan
 		}
 	case Literal:
 		switch lit in atom {
@@ -218,6 +226,7 @@ type_to_c :: proc(info: ^Info, state: ^cgen.State, type: Type) -> cgen.Type {
 		case .string: return cgen.type_ptr(state, .char)
 		case .u8:     return .uint8_t
 		case .u32:    return .uint32_t
+		case .i32:    return .int32_t
 		case .bool:   return .bool
 		case .any:    unimplemented()
 		}

@@ -155,6 +155,7 @@ prs_type :: proc(prs: ^Parser, allocator := context.allocator) -> (type: Type, e
 	case .KW_any:    type = .any
 	case .KW_u8:     type = .u8
 	case .KW_u32:    type = .u32
+	case .KW_i32:    type = .i32
 	case .KW_bool:   type = .bool
 	case:
 		error = prs_error(prs, "Expected type but got %v (%v)", token.type, token.value)
@@ -370,6 +371,8 @@ prs_expr_atom :: proc(prs: ^Parser, allocator := context.allocator) -> (expr_ato
 	#partial switch token.type {
 	case .LessThan:
 		expr_atom = .LessThan
+	case .GreaterThan:
+		expr_atom = .GreaterThan
 	case .Exclaim:
 		expr_atom = .Not
 	case .Plus:
