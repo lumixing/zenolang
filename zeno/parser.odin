@@ -337,69 +337,69 @@ prs_return :: proc(prs: ^Parser, allocator := context.allocator) -> (ret: Return
 	return
 }
 
-prs_expr :: proc(prs: ^Parser, allocator := context.allocator) -> (expr: Expr, consumed: uint, error: Maybe(Error)) {
+prs_expr :: proc(prs: ^Parser, min_bp: u8 = 0, allocator := context.allocator) -> (expr: Expr, consumed: uint, error: Maybe(Error)) {
 	context.allocator = allocator
 	span_old := prs.span
 
-	dyn_expr: [dynamic]ExprAtom
-	
+	lhs: Expr = prs_atom(prs) or_return
+
 	for {
-		expr_atom, consumed, err := prs_expr_atom(prs)
-		if err, ok := err.?; ok {
-			prs.span.hi -= consumed
+		op, op_consumed, op_err := prs_op(prs)
+		if op_err != nil {
+			prs.span.hi -= op_consumed
 			break
 		}
-		append(&dyn_expr, expr_atom)
-	}
 
-	if len(dyn_expr) == 0 {
-		fmt.println("hacking")
-		prs_expr_atom(prs) or_return  // @hack
+		l_bp, r_bp := infix_bp(op)
+		if l_bp < min_bp {
+			prs.span.hi -= op_consumed
+			break
+		}
+
+		rhs, _ := prs_expr(prs, r_bp) or_return
+
+		lhs = new_clone(Bin {
+			op = op.(Binop),
+			lhs = lhs,
+			rhs = rhs,
+		})
 	}
 
 	consumed = prs.span.hi - span_old.hi
-	expr = Expr(dyn_expr[:])
+	expr = lhs
 	return
 }
 
-prs_expr_atom :: proc(prs: ^Parser, allocator := context.allocator) -> (expr_atom: ExprAtom, consumed: uint, error: Maybe(Error)) {
+prs_atom :: proc(prs: ^Parser, allocator := context.allocator) -> (atom: Atom, error: Maybe(Error)) {
+	context.allocator = allocator
+
+	token := prs_eat(prs) or_return
+	#partial switch token.type {
+	case .Ident:
+		atom = Ident(token.value.(string))
+	case .String:
+		atom = Literal(token.value.(string))
+	case .Integer:
+		atom = Literal(token.value.(int))
+	case:
+		error = prs_error(prs, "Expected atom but got %v (%v)", token.type, token.value)
+	}
+
+	return
+}
+
+prs_op :: proc(prs: ^Parser, allocator := context.allocator) -> (op: Op, consumed: uint, error: Maybe(Error)) {
 	context.allocator = allocator
 	span_old := prs.span
 
 	token := prs_eat(prs) or_return
-	
 	#partial switch token.type {
-	case .LessThan:
-		expr_atom = .LessThan
-	case .GreaterThan:
-		expr_atom = .GreaterThan
-	case .Exclaim:
-		expr_atom = .Not
 	case .Plus:
-		expr_atom = .Add
-	case .Hyphen:
-		expr_atom = .Neg
-	case .String:
-		expr_atom = Literal(token.value.(string))
-	case .Integer:
-		expr_atom = Literal(token.value.(int))
-	case .Ident:
-		prs.span.hi -= 1  // hacky but i dont wanna peek top `token`
-		token_1 := prs_peek(prs, 1) or_return
-
-		#partial switch token_1.type {
-		case .LParen:
-			expr_atom = prs_func_call(prs) or_return
-		case:
-			_ = prs_expect(prs, .Ident) or_return
-			expr_atom = Ident(token.value.(string))
-		}
-	case .KW_true:
-		expr_atom = Literal(true)
-	case .KW_false:
-		expr_atom = Literal(false)
+		op = .Add
+	case .Asterisk:
+		op = .Mult
 	case:
-		error = prs_error(prs, "Expected expression but got %v (%v)", token.type, token.value)
+		error = prs_error(prs, "Expected operator but got %v (%v)", token.type, token.value)
 	}
 
 	consumed = prs.span.hi - span_old.hi

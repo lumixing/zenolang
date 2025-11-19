@@ -96,32 +96,56 @@ Assign :: struct {
 	rhs: Expr,
 }
 
-Expr :: distinct []ExprAtom
-
-ExprAtom :: union #no_nil {
-	Expr,
-	Literal,
-	Ident,
-	FuncCall,
-	Unop, // i just had a revolation, what if Unop/Binop was distinct Expr
-	Binop,
+Expr :: union #no_nil {
+	Atom,
+	^Un,
+	^Bin,
 }
 
-Literal :: union #no_nil {
-	string,
-	int,
-	bool,
+Atom :: union #no_nil {
+	Ident,
+	Literal,
 }
 
 Ident :: distinct string
 
+Literal :: union #no_nil {
+	string,
+	int,
+}
+
+Op :: union #no_nil {
+	Unop,
+	Binop,
+}
+
+Un :: struct {
+	op: Unop,
+	expr: Expr,
+}
+
 Unop :: enum {
-	Not,
-	Neg,
+}
+
+Bin :: struct {
+	op: Binop,
+	lhs: Expr,
+	rhs: Expr,
 }
 
 Binop :: enum {
-	LessThan,
-	GreaterThan,
 	Add,
+	Mult,
+}
+
+infix_bp :: proc(op: Op) -> (u8, u8) {
+	#partial switch op in op {
+	case Binop:
+		switch op {
+		case .Add:  return 1, 2
+		case .Mult: return 3, 4
+		}
+	}
+
+	panic("you did something very VERY wrong")
 }

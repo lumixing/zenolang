@@ -60,21 +60,21 @@ check_block :: proc(info: ^Info, block: Block) -> (error: Maybe(Error)) {
 		#partial switch stmt in stmt {
 		case FuncCall:
 			check_func_call(info, stmt) or_return
-		case VarDef:
-			check_var_def(info, stmt) or_return
+		//case VarDef:
+			//check_var_def(info, stmt) or_return
 		}
 	}
 
 	return
 }
 
-@(require_results)
-check_var_def :: proc(info: ^Info, var_def: VarDef) -> (error: Maybe(Error)) {
-	value_type := expr_type(info, var_def.value)
-	check_type_eq(var_def.type, value_type) or_return
+//@(require_results)
+//check_var_def :: proc(info: ^Info, var_def: VarDef) -> (error: Maybe(Error)) {
+//	value_type := expr_type(info, var_def.value)
+//	check_type_eq(var_def.type, value_type) or_return
 
-	return
-}
+//	return
+//}
 
 @(require_results)
 check_func_sign :: proc(info: ^Info, func_sign: FuncSign) -> (error: Maybe(Error)) {
@@ -185,38 +185,38 @@ check_type_eq :: proc(type1, type2: Type) -> (error: Maybe(Error)) {
 	return check_error("Expected type %v but got %v", type1, type2)
 }
 
-expr_atom_type :: proc(info: ^Info, expr_atom: ExprAtom) -> Maybe(Type) {
-	switch atom in expr_atom {
-	case Expr: return nil
-	case Literal:
-		switch lit in atom {
-		case string: return .string
-		case int: 	 return .i32
-		case bool:   return .bool
-		}
-	case Ident: return nil
-	case FuncCall:
-		return info.funcs[atom.name].sign.return_type
-	case Unop: return nil
-	case Binop: return nil
-	}
+//expr_atom_type :: proc(info: ^Info, expr_atom: ExprAtom) -> Maybe(Type) {
+//	switch atom in expr_atom {
+//	case Expr: return nil
+//	case Literal:
+//		switch lit in atom {
+//		case string: return .string
+//		case int: 	 return .i32
+//		case bool:   return .bool
+//		}
+//	case Ident: return nil
+//	case FuncCall:
+//		return info.funcs[atom.name].sign.return_type
+//	case Unop: return nil
+//	case Binop: return nil
+//	}
 
-	unreachable()
-}
+//	unreachable()
+//}
 
-expr_type :: proc(info: ^Info, expr: Expr) -> Type {
-	assert(len(expr) != 0)
+//expr_type :: proc(info: ^Info, expr: Expr) -> Type {
+//	assert(len(expr) != 0)
 
-	for atom in expr {
-		if type, ok := expr_atom_type(info, atom).?; ok {
-			return type
-		} else {
-			continue
-		}
-	}
+//	for atom in expr {
+//		if type, ok := expr_atom_type(info, atom).?; ok {
+//			return type
+//		} else {
+//			continue
+//		}
+//	}
 
-	unimplemented("oops")
-}
+//	unimplemented("oops")
+//}
 
 check_error :: proc(fmtstr: string, args: ..any, allocator := context.allocator) -> Error {
 	context.allocator = allocator

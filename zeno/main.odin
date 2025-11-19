@@ -174,44 +174,34 @@ args_to_c :: proc(state: ^cgen.State, args: []Expr) -> []cgen.Expr {
 expr_to_c :: proc(state: ^cgen.State, expr: Expr) -> cgen.Expr {
 	atoms: [dynamic]cgen.ExprAtom
 
-	for atom in expr {
-		append(&atoms, expr_atom_to_c(state, atom))
+	switch expr in expr {
+	case Atom:
+		switch atom in expr {
+		case Ident:
+			append(&atoms, cgen.Ident(atom))
+		case Literal:
+			switch lit in atom {
+			case string:
+				append(&atoms, cgen.Literal(lit))
+			case int:
+				append(&atoms, cgen.Literal(lit))
+			}
+		}
+	case ^Un: unimplemented()
+	case ^Bin:
+		switch expr.op {
+		case .Add:
+			append(&atoms, expr_to_c(state, expr.lhs))
+			append(&atoms, cgen.Binop.Add)
+			append(&atoms, expr_to_c(state, expr.rhs))
+		case .Mult:
+			append(&atoms, expr_to_c(state, expr.lhs))
+			append(&atoms, cgen.Binop.Mult)
+			append(&atoms, expr_to_c(state, expr.rhs))
+		}
 	}
 
 	return cgen.Expr(atoms[:])
-}
-
-expr_atom_to_c :: proc(state: ^cgen.State, expr_atom: ExprAtom) -> cgen.ExprAtom {
-	switch atom in expr_atom {
-	case Expr:
-		return cgen.Expr(expr_to_c(state, atom))
-	case Unop:
-		switch atom {
-		case .Not: return .Not
-		case .Neg: return .Neg
-		}
-	case Binop:
-		switch atom {
-		case .Add: return .Add
-		case .LessThan: return .LessThan
-		case .GreaterThan: return .GreaterThan
-		}
-	case Literal:
-		switch lit in atom {
-		case string: return cgen.Literal(lit)
-		case int:    return cgen.Literal(lit)
-		case bool:   return cgen.Literal(lit)
-		}
-	case Ident:
-		return cgen.Ident(atom)
-	case FuncCall:
-		return cgen.FuncCall{
-			name = atom.name,
-			args = args_to_c(state, atom.args),
-		}
-	}
-
-	unreachable()
 }
 
 type_to_c :: proc(info: ^Info, state: ^cgen.State, type: Type) -> cgen.Type {

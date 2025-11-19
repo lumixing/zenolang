@@ -19,6 +19,7 @@ TokenType :: enum {
 	Eq,
 	Exclaim,
 	Plus,
+	Asterisk,
 	Hyphen,
 
 	LessThan,
