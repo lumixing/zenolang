@@ -5,8 +5,8 @@
 #foreign("!raylib.h") BeginDrawing() void
 #foreign("!raylib.h") EndDrawing() void
 #foreign("!raylib.h") ClearBackground(color u32) void
-#foreign("!raylib.h") DrawText(text string, x u32, y u32, size u32, color u32) void
-#foreign("!raylib.h") DrawRectangle(x u32, y u32, w u32, h u32, color u32) void
+#foreign("!raylib.h") DrawText(text string, x i32, y i32, size i32, color u32) void
+#foreign("!raylib.h") DrawRectangle(x i32, y i32, w i32, h i32, color u32) void
 #foreign("!raylib.h") CloseWindow() void
 #foreign("!raylib.h") GetColor() any
 #foreign("!raylib.h") SetTraceLogLevel(level u32) void
@@ -29,7 +29,7 @@ main() void {
 	InitWindow(800, 600, "raylib in zeno!")
 	SetTargetFPS(60)
 
-	y0 i32 = 300
+	y0 string = 300
 
 	bx i32 = 700
 	by i32 = 200
