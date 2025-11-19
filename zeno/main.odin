@@ -6,8 +6,10 @@ import "core:c/libc"
 import "core:fmt"
 import "../cgen"
 
+FILE :: "hello.zn"
+
 main :: proc() {
-	file := #load("../hello.zn")
+	file := #load("../" + FILE)
 	lexer: Lexer
 	err := lexer_scan(&lexer, file)
 	if err, ok := err.?; ok {
@@ -24,7 +26,8 @@ main :: proc() {
 	prs: Parser
 	err2 := prs_parse(&prs, &info, lexer.tokens[:])
 	if err, ok := err2.?; ok {
-		fmt.println(err.message)
+		line, col := span_to_line_col(file, prs.tokens[err.span.hi].span)
+		fmt.printfln(FILE + ":%d:%d: %s\n(%v)", line, col, err.message, err.loc)
 		return
 	}
 	//fmt.printfln("%#v", prs.top_stmts[:])
@@ -41,6 +44,8 @@ main :: proc() {
 
 	includes["stdint.h"] = true
 	cgen.include(&state, "stdint.h", .Bracket)
+	includes["stdbool.h"] = true
+	cgen.include(&state, "stdbool.h", .Bracket)
 
 	// includes
 	for top_stmt in prs.top_stmts[:] {
@@ -48,9 +53,16 @@ main :: proc() {
 		case Directive:
 			switch dir in tstmt {
 			case DirectiveForeign:
-				if dir.filename not_in includes {
-					includes[dir.filename] = true
-					cgen.include(&state, dir.filename, .Bracket)
+				if dir.filename[0] == '!' {
+					if dir.filename[1:] not_in includes {
+						includes[dir.filename[1:]] = true
+						cgen.include(&state, dir.filename[1:], .Quote)
+					}
+				} else {
+					if dir.filename not_in includes {
+						includes[dir.filename] = true
+						cgen.include(&state, dir.filename, .Bracket)
+					}
 				}
 			}
 		}
@@ -84,25 +96,7 @@ main :: proc() {
 				.Brace,
 			)
 
-			for stmt in tstmt.body {
-				switch stmt in stmt {
-				case FuncCall:
-					cgen.func_call(&state, 1, stmt.name, args_to_c(&state, stmt.args))
-				case VarDef:
-					cgen.var_def(
-						&state, 1,
-						type_to_c(&info, &state, stmt.type),
-						stmt.name,
-						expr_to_c(&state, stmt.value),
-					)
-				case Return:
-					if value, ok := stmt.value.?; ok {
-						cgen.ret_expr(&state, 1, expr_to_c(&state, value))
-					} else {
-						cgen.ret(&state, 1)
-					}
-				}
-			}
+			gen_block(&info, &state, tstmt.body, 1)
 
 			cgen.brace(&state)
 			cgen.newline(&state)
@@ -111,7 +105,43 @@ main :: proc() {
 
 	assert(os.write_entire_file("main.c", transmute([]u8)strings.join(state.lines[:], "\n")))
 
-	libc.system("gcc main.c -o out && out.exe")
+	libc.system(`gcc main.c -o out -L"C:\Users\lumix\scoop\apps\raylib-mingw\5.5\raylib-5.5_win64_mingw-w64\lib" -lraylib -lopengl32 -lgdi32 -lwinmm && out.exe`)
+}
+
+gen_block :: proc(info: ^Info, state: ^cgen.State, block: Block, depth: uint) {
+	for stmt in block {
+		switch stmt in stmt {
+		case Assign:
+			cgen.assign(
+				state, depth,
+				expr_to_c(state, stmt.lhs),
+				expr_to_c(state, stmt.rhs),
+			)
+		case While:
+			cgen.while(state, depth, expr_to_c(state, stmt.cond))
+			gen_block(info, state, stmt.body, depth + 1)
+			cgen.brace(state, depth)
+		case If:
+			cgen.if_(state, depth, expr_to_c(state, stmt.cond))
+			gen_block(info, state, stmt.body, depth + 1)
+			cgen.brace(state, depth)
+		case FuncCall:
+			cgen.func_call(state, depth, stmt.name, args_to_c(state, stmt.args))
+		case VarDef:
+			cgen.var_def(
+				state, depth,
+				type_to_c(info, state, stmt.type),
+				stmt.name,
+				expr_to_c(state, stmt.value),
+			)
+		case Return:
+			if value, ok := stmt.value.?; ok {
+				cgen.ret_expr(state, depth, expr_to_c(state, value))
+			} else {
+				cgen.ret(state, depth)
+			}
+		}
+	}
 }
 
 param_to_c_param :: proc(info: ^Info, state: ^cgen.State, param: Param) -> cgen.Param {
@@ -153,13 +183,27 @@ expr_to_c :: proc(state: ^cgen.State, expr: Expr) -> cgen.Expr {
 
 expr_atom_to_c :: proc(state: ^cgen.State, expr_atom: ExprAtom) -> cgen.ExprAtom {
 	switch atom in expr_atom {
-	case Expr: unimplemented()
+	case Expr:
+		return cgen.Expr(expr_to_c(state, atom))
+	case Unop:
+		switch atom {
+		case .Not: return .Not
+		case .Neg: return .Neg
+		}
+	case Binop:
+		switch atom {
+		case .Add: return .Add
+		case .LessThan: return .LessThan
+		case .GreaterThan: return .GreaterThan
+		}
 	case Literal:
 		switch lit in atom {
 		case string: return cgen.Literal(lit)
 		case int:    return cgen.Literal(lit)
+		case bool:   return cgen.Literal(lit)
 		}
-	case Ident: return cgen.Ident(atom)
+	case Ident:
+		return cgen.Ident(atom)
 	case FuncCall:
 		return cgen.FuncCall{
 			name = atom.name,
@@ -182,6 +226,8 @@ type_to_c :: proc(info: ^Info, state: ^cgen.State, type: Type) -> cgen.Type {
 		case .string: return cgen.type_ptr(state, .char)
 		case .u8:     return .uint8_t
 		case .u32:    return .uint32_t
+		case .i32:    return .int32_t
+		case .bool:   return .bool
 		case .any:    unimplemented()
 		}
 	case UserType: unimplemented()

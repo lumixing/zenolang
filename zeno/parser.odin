@@ -155,6 +155,8 @@ prs_type :: proc(prs: ^Parser, allocator := context.allocator) -> (type: Type, e
 	case .KW_any:    type = .any
 	case .KW_u8:     type = .u8
 	case .KW_u32:    type = .u32
+	case .KW_i32:    type = .i32
+	case .KW_bool:   type = .bool
 	case:
 		error = prs_error(prs, "Expected type but got %v (%v)", token.type, token.value)
 	}
@@ -205,12 +207,18 @@ prs_stmt :: proc(prs: ^Parser, allocator := context.allocator) -> (stmt: Stmt, e
 	token := prs_peek(prs) or_return
 
 	#partial switch token.type {
+	case .KW_for:
+		stmt = prs_while(prs) or_return
+	case .KW_if:
+		stmt = prs_if(prs) or_return
 	case .Ident:
 		token_1 := prs_peek(prs, 1) or_return
 
 		#partial switch token_1.type {
 		case .LParen:
 			stmt = prs_func_call(prs) or_return
+		case .Eq:
+			stmt = prs_assign(prs) or_return
 		case:
 			// @temp: eventually ill have to do prs_is_type() or something similar
 			stmt = prs_var_def(prs) or_return
@@ -225,6 +233,34 @@ prs_stmt :: proc(prs: ^Parser, allocator := context.allocator) -> (stmt: Stmt, e
 	return
 }
 
+prs_while :: proc(prs: ^Parser, allocator := context.allocator) -> (while: While, error: Maybe(Error)) {
+	context.allocator = allocator
+
+	_ = prs_expect(prs, .KW_for) or_return
+	cond, _ := prs_expr(prs) or_return
+	body := prs_block(prs) or_return
+
+	while = {
+		cond = cond,
+		body = body,
+	}
+	return
+}
+
+prs_if :: proc(prs: ^Parser, allocator := context.allocator) -> (if_: If, error: Maybe(Error)) {
+	context.allocator = allocator
+
+	_ = prs_expect(prs, .KW_if) or_return
+	cond, _ := prs_expr(prs) or_return
+	body := prs_block(prs) or_return
+
+	if_ = {
+		cond = cond,
+		body = body,
+	}
+	return
+}
+
 prs_func_call :: proc(prs: ^Parser, allocator := context.allocator) -> (func_call: FuncCall, error: Maybe(Error)) {
 	context.allocator = allocator
 
@@ -233,13 +269,13 @@ prs_func_call :: proc(prs: ^Parser, allocator := context.allocator) -> (func_cal
 	args: [dynamic]Expr
 
 	if (prs_peek(prs) or_return).type != .RParen {
-		expr := prs_expr(prs) or_return
+		expr, _ := prs_expr(prs) or_return
 		append(&args, expr)
 
 		if (prs_peek(prs) or_return).type == .Comma {
 			for (prs_peek(prs) or_return).type != .RParen {
 				_ = prs_expect(prs, .Comma) or_return
-				expr := prs_expr(prs) or_return
+				expr, _ := prs_expr(prs) or_return
 				append(&args, expr)
 			}
 		}
@@ -254,13 +290,27 @@ prs_func_call :: proc(prs: ^Parser, allocator := context.allocator) -> (func_cal
 	return
 }
 
+prs_assign :: proc(prs: ^Parser, allocator := context.allocator) -> (assign: Assign, error: Maybe(Error)) {
+	context.allocator = allocator
+
+	lhs, _ := prs_expr(prs) or_return
+	_ = prs_expect(prs, .Eq) or_return
+	rhs, _ := prs_expr(prs) or_return
+
+	assign = {
+		lhs = lhs,
+		rhs = rhs,
+	}
+	return
+}
+
 prs_var_def :: proc(prs: ^Parser, allocator := context.allocator) -> (var_def: VarDef, error: Maybe(Error)) {
 	context.allocator = allocator
 
 	name := (prs_expect(prs, .Ident) or_return).(string)
 	type := prs_type(prs) or_return
 	_ = prs_expect(prs, .Eq) or_return
-	value := prs_expr(prs) or_return
+	value, _ := prs_expr(prs) or_return
 
 	var_def = {
 		name = name,
@@ -279,44 +329,85 @@ prs_return :: proc(prs: ^Parser, allocator := context.allocator) -> (ret: Return
 		return
 	}
 
-	ret.value = prs_expr(prs) or_return
+	// we could remove _ by not making it return consumed
+	// instead prs_try_expr returns consumed
+	// OR put consumed in Error
+	value, _ := prs_expr(prs) or_return
+	ret.value = value
 	return
 }
 
-prs_expr :: proc(prs: ^Parser, allocator := context.allocator) -> (expr: Expr, error: Maybe(Error)) {
+prs_expr :: proc(prs: ^Parser, allocator := context.allocator) -> (expr: Expr, consumed: uint, error: Maybe(Error)) {
 	context.allocator = allocator
+	span_old := prs.span
 
 	dyn_expr: [dynamic]ExprAtom
-	token := prs_peek(prs) or_return
 	
-	#partial switch token.type {
-	case .String:
-		_ = prs_eat(prs) or_return
-		append(&dyn_expr, Literal(token.value.(string)))
-	case .Integer:
-		_ = prs_eat(prs) or_return
-		append(&dyn_expr, Literal(token.value.(int)))
-	case .Ident:
-		token_1 := prs_peek(prs, 1) or_return
-
-		#partial switch token_1.type {
-		case .LParen:
-			append(&dyn_expr, prs_func_call(prs) or_return)
-		case:
-			_ = prs_eat(prs) or_return
-			append(&dyn_expr, Ident(token.value.(string)))
+	for {
+		expr_atom, consumed, err := prs_expr_atom(prs)
+		if err, ok := err.?; ok {
+			prs.span.hi -= consumed
+			break
 		}
-	case:
-		error = prs_error(prs, "Expected expression but got %v (%v)", token.type, token.value)
-		return
+		append(&dyn_expr, expr_atom)
 	}
 
+	if len(dyn_expr) == 0 {
+		fmt.println("hacking")
+		prs_expr_atom(prs) or_return  // @hack
+	}
+
+	consumed = prs.span.hi - span_old.hi
 	expr = Expr(dyn_expr[:])
 	return
 }
 
+prs_expr_atom :: proc(prs: ^Parser, allocator := context.allocator) -> (expr_atom: ExprAtom, consumed: uint, error: Maybe(Error)) {
+	context.allocator = allocator
+	span_old := prs.span
+
+	token := prs_eat(prs) or_return
+	
+	#partial switch token.type {
+	case .LessThan:
+		expr_atom = .LessThan
+	case .GreaterThan:
+		expr_atom = .GreaterThan
+	case .Exclaim:
+		expr_atom = .Not
+	case .Plus:
+		expr_atom = .Add
+	case .Hyphen:
+		expr_atom = .Neg
+	case .String:
+		expr_atom = Literal(token.value.(string))
+	case .Integer:
+		expr_atom = Literal(token.value.(int))
+	case .Ident:
+		prs.span.hi -= 1  // hacky but i dont wanna peek top `token`
+		token_1 := prs_peek(prs, 1) or_return
+
+		#partial switch token_1.type {
+		case .LParen:
+			expr_atom = prs_func_call(prs) or_return
+		case:
+			_ = prs_expect(prs, .Ident) or_return
+			expr_atom = Ident(token.value.(string))
+		}
+	case .KW_true:
+		expr_atom = Literal(true)
+	case .KW_false:
+		expr_atom = Literal(false)
+	case:
+		error = prs_error(prs, "Expected expression but got %v (%v)", token.type, token.value)
+	}
+
+	consumed = prs.span.hi - span_old.hi
+	return
+}
+
 @(require_results)
-prs_expect :: proc(prs: ^Parser, type: TokenType, allocator := context.allocator) -> (value: TokenValue, error: Maybe(Error)) {
+prs_expect :: proc(prs: ^Parser, type: TokenType, allocator := context.allocator, loc := #caller_location) -> (value: TokenValue, error: Maybe(Error)) {
 	context.allocator = allocator
 
 	token := prs_eat(prs) or_return
@@ -324,18 +415,19 @@ prs_expect :: proc(prs: ^Parser, type: TokenType, allocator := context.allocator
 	if token.type == type {
 		value = token.value
 	} else {
-		error = prs_error(prs, "Expected %v but got %v (%v)", type, token.type, token.value)
+		error = prs_error(prs, "Expected %v but got %v (%v)", type, token.type, token.value, loc = loc)
 	}
 
 	return
 }
 
-prs_error :: proc(prs: ^Parser, fmtstr: string, args: ..any, allocator := context.allocator) -> Error {
+prs_error :: proc(prs: ^Parser, fmtstr: string, args: ..any, allocator := context.allocator, loc := #caller_location) -> Error {
 	context.allocator = allocator
 
 	return {
 		message = fmt.aprintf(fmtstr, ..args),
 		span = prs.span,
+		loc = loc,
 	}
 }
 

@@ -38,9 +38,11 @@ Pointer :: distinct uint
 Variadic :: distinct uint
 
 BasicType :: enum {
+	bool,
 	string,
 	u8,
 	u32,
+	i32,
 	void,
 	any,
 }
@@ -59,6 +61,9 @@ Stmt :: union {
 	FuncCall,
 	Return,
 	VarDef,
+	While,
+	If,
+	Assign,
 }
 
 FuncCall :: struct {
@@ -76,6 +81,21 @@ VarDef :: struct {
 	value: Expr,
 }
 
+While :: struct {
+	cond: Expr,
+	body: Block,
+}
+
+If :: struct {
+	cond: Expr,
+	body: Block,
+}
+
+Assign :: struct {
+	lhs: Expr,
+	rhs: Expr,
+}
+
 Expr :: distinct []ExprAtom
 
 ExprAtom :: union #no_nil {
@@ -83,11 +103,25 @@ ExprAtom :: union #no_nil {
 	Literal,
 	Ident,
 	FuncCall,
+	Unop, // i just had a revolation, what if Unop/Binop was distinct Expr
+	Binop,
 }
 
 Literal :: union #no_nil {
 	string,
 	int,
+	bool,
 }
 
 Ident :: distinct string
+
+Unop :: enum {
+	Not,
+	Neg,
+}
+
+Binop :: enum {
+	LessThan,
+	GreaterThan,
+	Add,
+}

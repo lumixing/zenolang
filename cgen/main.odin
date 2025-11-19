@@ -55,6 +55,32 @@ for_ :: proc(state: ^State, depth: uint, init: VarDef, cond: Expr, iter: Expr) {
 	))
 }
 
+while :: proc(state: ^State, depth: uint, cond: Expr) {
+	append(&state.lines, fmt.aprintf(
+		"%swhile(%s) {{",
+		indent(depth),
+		expr_str(state, cond),
+	))
+}
+
+// for nesting (elseif/else) we could do if_(ifs: []{cond, body})
+if_ :: proc(state: ^State, depth: uint, cond: Expr) {
+	append(&state.lines, fmt.aprintf(
+		"%sif(%s) {{",
+		indent(depth),
+		expr_str(state, cond),
+	))
+}
+
+assign :: proc(state: ^State, depth: uint, lhs, rhs: Expr) {
+	append(&state.lines, fmt.aprintf(
+		"%s%s = %s;",
+		indent(depth),
+		expr_str(state, lhs),
+		expr_str(state, rhs),
+	))
+}
+
 VarDef :: struct {
 	type:  Type,
 	name:  string,
