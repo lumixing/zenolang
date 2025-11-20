@@ -60,21 +60,26 @@ check_block :: proc(info: ^Info, block: Block) -> (error: Maybe(Error)) {
 		#partial switch stmt in stmt {
 		case FuncCall:
 			check_func_call(info, stmt) or_return
-		//case VarDef:
-			//check_var_def(info, stmt) or_return
+		case VarDef:
+			check_var_def(info, stmt) or_return
 		}
 	}
 
 	return
 }
 
-//@(require_results)
-//check_var_def :: proc(info: ^Info, var_def: VarDef) -> (error: Maybe(Error)) {
-//	value_type := expr_type(info, var_def.value)
-//	check_type_eq(var_def.type, value_type) or_return
+@(require_results)
+check_var_def :: proc(info: ^Info, var_def: VarDef) -> (error: Maybe(Error)) {
+	value_type := expr_type(info, var_def.value)
+	// i need to actually make an idectical check_type_eq but less strict
+	// for var_def.value *LITERALS*, for example it should allow:
+	// x u32 = 32  // even though this literal is default i32
+	// but now allow this:
+	// y u8 = 679  // not in bounds of u8
+	check_type_eq(var_def.type, value_type) or_return
 
-//	return
-//}
+	return
+}
 
 @(require_results)
 check_func_sign :: proc(info: ^Info, func_sign: FuncSign) -> (error: Maybe(Error)) {
@@ -176,7 +181,6 @@ check_type_eq :: proc(type1, type2: Type) -> (error: Maybe(Error)) {
 	//if type1.type == .Any || type2.type == .Any {
 	//	return
 	//}
-
 	
 	if type1 == type2 {
 		return
@@ -185,38 +189,24 @@ check_type_eq :: proc(type1, type2: Type) -> (error: Maybe(Error)) {
 	return check_error("Expected type %v but got %v", type1, type2)
 }
 
-//expr_atom_type :: proc(info: ^Info, expr_atom: ExprAtom) -> Maybe(Type) {
-//	switch atom in expr_atom {
-//	case Expr: return nil
-//	case Literal:
-//		switch lit in atom {
-//		case string: return .string
-//		case int: 	 return .i32
-//		case bool:   return .bool
-//		}
-//	case Ident: return nil
-//	case FuncCall:
-//		return info.funcs[atom.name].sign.return_type
-//	case Unop: return nil
-//	case Binop: return nil
-//	}
+expr_type :: proc(info: ^Info, expr: Expr) -> Type {
+	switch expr in expr {
+	case Atom:
+		switch atom in expr {
+		case Ident: unimplemented()
+		case Literal:
+			switch lit in atom {
+			case string: return .string
+			case int:    return .i32,;;;  // valid btw?!
+			}
+		}
+	case ^Un: unimplemented()
+	case ^Bin:
+		return expr_type(info, expr.lhs)
+	}
 
-//	unreachable()
-//}
-
-//expr_type :: proc(info: ^Info, expr: Expr) -> Type {
-//	assert(len(expr) != 0)
-
-//	for atom in expr {
-//		if type, ok := expr_atom_type(info, atom).?; ok {
-//			return type
-//		} else {
-//			continue
-//		}
-//	}
-
-//	unimplemented("oops")
-//}
+	unreachable()
+}
 
 check_error :: proc(fmtstr: string, args: ..any, allocator := context.allocator) -> Error {
 	context.allocator = allocator

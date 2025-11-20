@@ -1,10 +1,12 @@
 package zeno
 
+import "core:c"
 import "core:strings"
 import "core:os"
 import "core:c/libc"
 import "core:fmt"
 import "../cgen"
+import "../iris"
 
 FILE :: "hello.zn"
 
@@ -37,75 +39,123 @@ main :: proc() {
 		fmt.println(err.message)
 		return
 	}
-	//fmt.println("done")
+	fmt.println("done")
 
-	state: cgen.State
-	includes: map[string]bool
-
-	includes["stdint.h"] = true
-	cgen.include(&state, "stdint.h", .Bracket)
-	includes["stdbool.h"] = true
-	cgen.include(&state, "stdbool.h", .Bracket)
-
-	// includes
-	for top_stmt in prs.top_stmts[:] {
-		#partial switch tstmt in top_stmt {
-		case Directive:
-			switch dir in tstmt {
-			case DirectiveForeign:
-				if dir.filename[0] == '!' {
-					if dir.filename[1:] not_in includes {
-						includes[dir.filename[1:]] = true
-						cgen.include(&state, dir.filename[1:], .Quote)
-					}
-				} else {
-					if dir.filename not_in includes {
-						includes[dir.filename] = true
-						cgen.include(&state, dir.filename, .Bracket)
-					}
-				}
-			}
-		}
-	}
-	cgen.newline(&state)
-
-	// func signs
-	for top_stmt in prs.top_stmts[:] {
-		#partial switch tstmt in top_stmt {
+	tstmts: [dynamic]iris.TopStmt
+	for it in prs.top_stmts {
+		#partial switch it in it {
 		case FuncDef:
-			cgen.func_sign(
-				&state,
-				type_to_c(&info, &state, tstmt.sign.return_type),
-				tstmt.sign.name,
-				params_to_c_params(&info, &state, tstmt.sign.params),
-				.Semicolon,
-			)
-		}
-	}
-	cgen.newline(&state)
-
-	// func defs
-	for top_stmt in prs.top_stmts[:] {
-		#partial switch tstmt in top_stmt {
-		case FuncDef:
-			cgen.func_sign(
-				&state,
-				type_to_c(&info, &state, tstmt.sign.return_type),
-				tstmt.sign.name,
-				params_to_c_params(&info, &state, tstmt.sign.params),
-				.Brace,
-			)
-
-			gen_block(&info, &state, tstmt.body, 1)
-
-			cgen.brace(&state)
-			cgen.newline(&state)
+			append(&tstmts, iris.Func{
+				type = type_to_iris(&info, it.sign.return_type),
+				name = it.sign.name,
+				params = params_to_iris(&info, it.sign.params),
+				body = {},
+			})
 		}
 	}
 
-	assert(os.write_entire_file("main.c", transmute([]u8)strings.join(state.lines[:], "\n")))
+	//state: cgen.State
+	//includes: map[string]bool
 
-	libc.system(`gcc main.c -o out -L"C:\Users\lumix\scoop\apps\raylib-mingw\5.5\raylib-5.5_win64_mingw-w64\lib" -lraylib -lopengl32 -lgdi32 -lwinmm && out.exe`)
+	//includes["stdint.h"] = true
+	//cgen.include(&state, "stdint.h", .Bracket)
+	//includes["stdbool.h"] = true
+	//cgen.include(&state, "stdbool.h", .Bracket)
+
+	//// includes
+	//for top_stmt in prs.top_stmts[:] {
+	//	#partial switch tstmt in top_stmt {
+	//	case Directive:
+	//		switch dir in tstmt {
+	//		case DirectiveForeign:
+	//			if dir.filename[0] == '!' {
+	//				if dir.filename[1:] not_in includes {
+	//					includes[dir.filename[1:]] = true
+	//					cgen.include(&state, dir.filename[1:], .Quote)
+	//				}
+	//			} else {
+	//				if dir.filename not_in includes {
+	//					includes[dir.filename] = true
+	//					cgen.include(&state, dir.filename, .Bracket)
+	//				}
+	//			}
+	//		}
+	//	}
+	//}
+	//cgen.newline(&state)
+
+	//// func signs
+	//for top_stmt in prs.top_stmts[:] {
+	//	#partial switch tstmt in top_stmt {
+	//	case FuncDef:
+	//		cgen.func_sign(
+	//			&state,
+	//			type_to_c(&info, &state, tstmt.sign.return_type),
+	//			tstmt.sign.name,
+	//			params_to_c_params(&info, &state, tstmt.sign.params),
+	//			.Semicolon,
+	//		)
+	//	}
+	//}
+	//cgen.newline(&state)
+
+	//// func defs
+	//for top_stmt in prs.top_stmts[:] {
+	//	#partial switch tstmt in top_stmt {
+	//	case FuncDef:
+	//		cgen.func_sign(
+	//			&state,
+	//			type_to_c(&info, &state, tstmt.sign.return_type),
+	//			tstmt.sign.name,
+	//			params_to_c_params(&info, &state, tstmt.sign.params),
+	//			.Brace,
+	//		)
+
+	//		gen_block(&info, &state, tstmt.body, 1)
+
+	//		cgen.brace(&state)
+	//		cgen.newline(&state)
+	//	}
+	//}
+
+	//assert(os.write_entire_file("main.c", transmute([]u8)strings.join(state.lines[:], "\n")))
+
+	//libc.system(`gcc main.c -o out -L"C:\Users\lumix\scoop\apps\raylib-mingw\5.5\raylib-5.5_win64_mingw-w64\lib" -lraylib -lopengl32 -lgdi32 -lwinmm && out.exe`)
+}
+
+params_to_iris :: proc(info: ^Info, params: []Param) -> []iris.Param {
+	params_arr: [dynamic]iris.Param
+
+	for it in params {
+		append(&params_arr, iris.Param {
+			type = type_to_iris(info, it.type),
+			value = it.name,
+		})
+	}
+
+	return params_arr[:]
+}
+
+type_to_iris :: proc(info: ^Info, type: Type) -> iris.Type {
+	switch it in type {
+	case Pointer:
+		return type_to_iris(info, info.type_map[uint(it)])
+	case Variadic:
+		return type_to_iris(info, info.type_map[uint(it)])
+	case BasicType:
+		switch it {
+		case .bool: return .i8
+		case .string: return .ptr
+		case .void: return .void
+		case .u8: return .i8
+		case .u32: return .i32
+		case .i32: return .i32
+		case .any: unimplemented()
+		}
+	case UserType: unimplemented()
+	}
+
+	unimplemented()
 }
 
 gen_block :: proc(info: ^Info, state: ^cgen.State, block: Block, depth: uint) {
