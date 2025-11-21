@@ -1,9 +1,11 @@
 package zeno
 
+import "diagn"
+
 Token :: struct {
 	type: TokenType,
 	value: TokenValue,
-	span: Span,
+	span: diagn.Span,
 }
 
 TokenType :: enum {
@@ -49,8 +51,4 @@ TokenType :: enum {
 TokenValue :: union {
 	string,
 	int,
-}
-
-Span :: struct {
-	lo, hi: uint,
 }

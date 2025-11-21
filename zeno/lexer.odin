@@ -3,14 +3,15 @@ package zeno
 import "core:unicode"
 import "core:strconv"
 import "core:fmt"
+import "diagn"
 
 Lexer :: struct {
 	input: []u8,
 	tokens: [dynamic]Token,
-	span: Span,
+	span: diagn.Span,
 }
 
-lexer_scan :: proc(lexer: ^Lexer, input: []u8, allocator := context.allocator) -> (error: Maybe(Error)) {
+lexer_scan :: proc(lexer: ^Lexer, input: []u8, allocator := context.allocator) -> (error: Maybe(diagn.Error)) {
 	context.allocator = allocator
 
 	lexer.input = input
@@ -130,7 +131,7 @@ lexer_add_token :: proc(lexer: ^Lexer, type: TokenType, value: TokenValue = nil)
 	})
 }
 
-lexer_error :: proc(lexer: ^Lexer, fmtstr: string, args: ..any, allocator := context.allocator) -> Error {
+lexer_error :: proc(lexer: ^Lexer, fmtstr: string, args: ..any, allocator := context.allocator) -> diagn.Error {
 	context.allocator = allocator
 
 	return {
@@ -139,7 +140,7 @@ lexer_error :: proc(lexer: ^Lexer, fmtstr: string, args: ..any, allocator := con
 	}
 }
 
-lexer_eat :: proc(lexer: ^Lexer) -> (char: u8, error: Maybe(Error)) {
+lexer_eat :: proc(lexer: ^Lexer) -> (char: u8, error: Maybe(diagn.Error)) {
 	if lexer_end(lexer) {
 		error = lexer_error(lexer, "Could not eat")
 		return
@@ -150,7 +151,7 @@ lexer_eat :: proc(lexer: ^Lexer) -> (char: u8, error: Maybe(Error)) {
 	return
 }
 
-lexer_peek :: proc(lexer: ^Lexer) -> (char: u8, error: Maybe(Error)) {
+lexer_peek :: proc(lexer: ^Lexer) -> (char: u8, error: Maybe(diagn.Error)) {
 	if lexer_end(lexer) {
 		error = lexer_error(lexer, "Could not peek")
 		return

@@ -1,12 +1,10 @@
 package zeno
 
-import "core:c"
-import "core:strings"
-import "core:os"
-import "core:c/libc"
 import "core:fmt"
-import "../cgen"
-import "../iris"
+import check "checker"
+import "diagn"
+import cgen "gen/c"
+import irisgen "gen/iris"
 
 FILE :: "hello.zn"
 
@@ -19,7 +17,7 @@ main :: proc() {
 		return
 	}
 
-	info: Info
+	info: check.Info
 
 	//for token in lexer.tokens {
 	//	fmt.println(token)
@@ -28,250 +26,20 @@ main :: proc() {
 	prs: Parser
 	err2 := prs_parse(&prs, &info, lexer.tokens[:])
 	if err, ok := err2.?; ok {
-		line, col := span_to_line_col(file, prs.tokens[err.span.hi].span)
+		line, col := diagn.span_to_line_col(file, prs.tokens[err.span.hi].span)
 		fmt.printfln(FILE + ":%d:%d: %s\n(%v)", line, col, err.message, err.loc)
 		return
 	}
 	//fmt.printfln("%#v", prs.top_stmts[:])
 
-	err3 := check(&info, prs.top_stmts[:])
+	err3 := check.check(&info, prs.top_stmts[:])
 	if err, ok := err3.?; ok {
 		fmt.println(err.message)
 		return
 	}
+
+	cgen.gen(prs.top_stmts[:], &info)
+	//irisgen.gen(prs.top_stmts[:], &info)
+
 	fmt.println("done")
-
-	tstmts: [dynamic]iris.TopStmt
-	for it in prs.top_stmts {
-		#partial switch it in it {
-		case FuncDef:
-			append(&tstmts, iris.Func{
-				type = type_to_iris(&info, it.sign.return_type),
-				name = it.sign.name,
-				params = params_to_iris(&info, it.sign.params),
-				body = {},
-			})
-		}
-	}
-
-	//state: cgen.State
-	//includes: map[string]bool
-
-	//includes["stdint.h"] = true
-	//cgen.include(&state, "stdint.h", .Bracket)
-	//includes["stdbool.h"] = true
-	//cgen.include(&state, "stdbool.h", .Bracket)
-
-	//// includes
-	//for top_stmt in prs.top_stmts[:] {
-	//	#partial switch tstmt in top_stmt {
-	//	case Directive:
-	//		switch dir in tstmt {
-	//		case DirectiveForeign:
-	//			if dir.filename[0] == '!' {
-	//				if dir.filename[1:] not_in includes {
-	//					includes[dir.filename[1:]] = true
-	//					cgen.include(&state, dir.filename[1:], .Quote)
-	//				}
-	//			} else {
-	//				if dir.filename not_in includes {
-	//					includes[dir.filename] = true
-	//					cgen.include(&state, dir.filename, .Bracket)
-	//				}
-	//			}
-	//		}
-	//	}
-	//}
-	//cgen.newline(&state)
-
-	//// func signs
-	//for top_stmt in prs.top_stmts[:] {
-	//	#partial switch tstmt in top_stmt {
-	//	case FuncDef:
-	//		cgen.func_sign(
-	//			&state,
-	//			type_to_c(&info, &state, tstmt.sign.return_type),
-	//			tstmt.sign.name,
-	//			params_to_c_params(&info, &state, tstmt.sign.params),
-	//			.Semicolon,
-	//		)
-	//	}
-	//}
-	//cgen.newline(&state)
-
-	//// func defs
-	//for top_stmt in prs.top_stmts[:] {
-	//	#partial switch tstmt in top_stmt {
-	//	case FuncDef:
-	//		cgen.func_sign(
-	//			&state,
-	//			type_to_c(&info, &state, tstmt.sign.return_type),
-	//			tstmt.sign.name,
-	//			params_to_c_params(&info, &state, tstmt.sign.params),
-	//			.Brace,
-	//		)
-
-	//		gen_block(&info, &state, tstmt.body, 1)
-
-	//		cgen.brace(&state)
-	//		cgen.newline(&state)
-	//	}
-	//}
-
-	//assert(os.write_entire_file("main.c", transmute([]u8)strings.join(state.lines[:], "\n")))
-
-	//libc.system(`gcc main.c -o out -L"C:\Users\lumix\scoop\apps\raylib-mingw\5.5\raylib-5.5_win64_mingw-w64\lib" -lraylib -lopengl32 -lgdi32 -lwinmm && out.exe`)
-}
-
-params_to_iris :: proc(info: ^Info, params: []Param) -> []iris.Param {
-	params_arr: [dynamic]iris.Param
-
-	for it in params {
-		append(&params_arr, iris.Param {
-			type = type_to_iris(info, it.type),
-			value = it.name,
-		})
-	}
-
-	return params_arr[:]
-}
-
-type_to_iris :: proc(info: ^Info, type: Type) -> iris.Type {
-	switch it in type {
-	case Pointer:
-		return type_to_iris(info, info.type_map[uint(it)])
-	case Variadic:
-		return type_to_iris(info, info.type_map[uint(it)])
-	case BasicType:
-		switch it {
-		case .bool: return .i8
-		case .string: return .ptr
-		case .void: return .void
-		case .u8: return .i8
-		case .u32: return .i32
-		case .i32: return .i32
-		case .any: unimplemented()
-		}
-	case UserType: unimplemented()
-	}
-
-	unimplemented()
-}
-
-gen_block :: proc(info: ^Info, state: ^cgen.State, block: Block, depth: uint) {
-	for stmt in block {
-		switch stmt in stmt {
-		case Assign:
-			cgen.assign(
-				state, depth,
-				expr_to_c(state, stmt.lhs),
-				expr_to_c(state, stmt.rhs),
-			)
-		case While:
-			cgen.while(state, depth, expr_to_c(state, stmt.cond))
-			gen_block(info, state, stmt.body, depth + 1)
-			cgen.brace(state, depth)
-		case If:
-			cgen.if_(state, depth, expr_to_c(state, stmt.cond))
-			gen_block(info, state, stmt.body, depth + 1)
-			cgen.brace(state, depth)
-		case FuncCall:
-			cgen.func_call(state, depth, stmt.name, args_to_c(state, stmt.args))
-		case VarDef:
-			cgen.var_def(
-				state, depth,
-				type_to_c(info, state, stmt.type),
-				stmt.name,
-				expr_to_c(state, stmt.value),
-			)
-		case Return:
-			if value, ok := stmt.value.?; ok {
-				cgen.ret_expr(state, depth, expr_to_c(state, value))
-			} else {
-				cgen.ret(state, depth)
-			}
-		}
-	}
-}
-
-param_to_c_param :: proc(info: ^Info, state: ^cgen.State, param: Param) -> cgen.Param {
-	return {
-		name = param.name,
-		type = type_to_c(info, state, param.type),
-	}
-}
-
-params_to_c_params :: proc(info: ^Info, state: ^cgen.State, params: []Param) -> []cgen.Param {
-	c_params: [dynamic]cgen.Param
-
-	for param in params {
-		append(&c_params, param_to_c_param(info, state, param))
-	}
-
-	return c_params[:]
-}
-
-args_to_c :: proc(state: ^cgen.State, args: []Expr) -> []cgen.Expr {
-	c_args: [dynamic]cgen.Expr
-
-	for expr in args {
-		append(&c_args, expr_to_c(state, expr))
-	}
-
-	return c_args[:]
-}
-
-expr_to_c :: proc(state: ^cgen.State, expr: Expr) -> cgen.Expr {
-	atoms: [dynamic]cgen.ExprAtom
-
-	switch expr in expr {
-	case Atom:
-		switch atom in expr {
-		case Ident:
-			append(&atoms, cgen.Ident(atom))
-		case Literal:
-			switch lit in atom {
-			case string:
-				append(&atoms, cgen.Literal(lit))
-			case int:
-				append(&atoms, cgen.Literal(lit))
-			}
-		}
-	case ^Un: unimplemented()
-	case ^Bin:
-		switch expr.op {
-		case .Add:
-			append(&atoms, expr_to_c(state, expr.lhs))
-			append(&atoms, cgen.Binop.Add)
-			append(&atoms, expr_to_c(state, expr.rhs))
-		case .Mult:
-			append(&atoms, expr_to_c(state, expr.lhs))
-			append(&atoms, cgen.Binop.Mult)
-			append(&atoms, expr_to_c(state, expr.rhs))
-		}
-	}
-
-	return cgen.Expr(atoms[:])
-}
-
-type_to_c :: proc(info: ^Info, state: ^cgen.State, type: Type) -> cgen.Type {
-	switch type in type {
-	case Variadic: unimplemented()
-	case Pointer:
-		ptype := type_to_c(info, state, info.type_map[uint(type)])
-		return cgen.type_ptr(state, ptype)
-	case BasicType:
-		switch type {
-		case .void:   return .void
-		case .string: return cgen.type_ptr(state, .char)
-		case .u8:     return .uint8_t
-		case .u32:    return .uint32_t
-		case .i32:    return .int32_t
-		case .bool:   return .bool
-		case .any:    unimplemented()
-		}
-	case UserType: unimplemented()
-	}
-
-	unreachable()
 }

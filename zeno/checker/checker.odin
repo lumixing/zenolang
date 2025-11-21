@@ -1,11 +1,13 @@
-package zeno
+package checker
 
 import "core:fmt"
+import "../ast"
+import "../diagn"
 
 Info :: struct {
 	funcs: map[string]Func,
 
-	type_map:     map[uint]Type,
+	type_map:     map[uint]ast.Type,
 	type_map_ptr: uint,
 
 	current_scope: ^Scope,
@@ -17,10 +19,10 @@ Scope :: struct {
 }
 
 Var :: struct {
-	type: Type,
+	type: ast.Type,
 }
 
-type_ptr :: proc(info: ^Info, type: Type) -> uint {
+type_ptr :: proc(info: ^Info, type: ast.Type) -> uint {
 	for k, v in info.type_map {
 		if type == v {
 			return k
@@ -34,18 +36,18 @@ type_ptr :: proc(info: ^Info, type: Type) -> uint {
 }
 
 Func :: struct {
-	sign: FuncSign,
+	sign: ast.FuncSign,
 }
 
-check :: proc(info: ^Info, top_stmts: []TopStmt) -> Maybe(Error) {
+check :: proc(info: ^Info, top_stmts: []ast.TopStmt) -> Maybe(diagn.Error) {
 	for top_stmt in top_stmts {
 		switch tstmt in top_stmt {
-		case Directive:
+		case ast.Directive:
 			switch dir in tstmt {
-			case DirectiveForeign:
+			case ast.DirectiveForeign:
 				check_func_sign(info, dir.func_sign) or_return
 			}
-		case FuncDef:
+		case ast.FuncDef:
 			check_func_sign(info, tstmt.sign) or_return
 		}
 	}
@@ -56,7 +58,7 @@ check :: proc(info: ^Info, top_stmts: []TopStmt) -> Maybe(Error) {
 
 	for top_stmt in top_stmts {
 		#partial switch tstmt in top_stmt {
-		case FuncDef:
+		case ast.FuncDef:
 			check_block(info, tstmt.body) or_return
 		}
 	}
@@ -65,16 +67,16 @@ check :: proc(info: ^Info, top_stmts: []TopStmt) -> Maybe(Error) {
 }
 
 @(require_results)
-check_block :: proc(info: ^Info, block: Block) -> (error: Maybe(Error)) {
+check_block :: proc(info: ^Info, block: ast.Block) -> (error: Maybe(diagn.Error)) {
 	scope: Scope
 	scope.prev_scope = info.current_scope
 	info.current_scope = &scope
 
 	for it in block {
 		switch it in it {
-		case FuncCall:
+		case ast.FuncCall:
 			check_func_call(info, it) or_return
-		case VarDef:
+		case ast.VarDef:
 			//check_var_def(info, it) or_return
 			var := get_var(info, info.current_scope, it.name)
 			if var != nil {
@@ -88,14 +90,14 @@ check_block :: proc(info: ^Info, block: Block) -> (error: Maybe(Error)) {
 			info.current_scope.vars[it.name] = {
 				type = expr_type(info, it.value),
 			}
-		case Return:
+		case ast.Return:
 			// todo: check return type
 			if it, ok := it.value.?; ok {
 				check_expr(info, it) or_return
 			}
-		case While: unimplemented()
-		case If: unimplemented()
-		case Assign: unimplemented()
+		case ast.While: unimplemented()
+		case ast.If: unimplemented()
+		case ast.Assign: unimplemented()
 		}
 	}
 
@@ -103,19 +105,19 @@ check_block :: proc(info: ^Info, block: Block) -> (error: Maybe(Error)) {
 }
 
 @(require_results)
-check_expr :: proc(info: ^Info, expr: Expr) -> (error: Maybe(Error)) {
+check_expr :: proc(info: ^Info, expr: ast.Expr) -> (error: Maybe(diagn.Error)) {
 	switch it in expr {
-	case Atom:
+	case ast.Atom:
 		#partial switch it in it {
-		case Ident:
+		case ast.Ident:
 			var := get_var(info, info.current_scope, string(it))
 			if var == nil {
 				error = check_error("Variable %q is not defined", it)
 				return
 			}
 		}
-	case ^Un: unimplemented()
-	case ^Bin:
+	case ^ast.Un: unimplemented()
+	case ^ast.Bin:
 		check_expr(info, it.lhs) or_return
 		check_expr(info, it.rhs) or_return
 		check_type_eq(expr_type(info, it.lhs), expr_type(info, it.rhs)) or_return
@@ -137,7 +139,7 @@ get_var :: proc(info: ^Info, scope: ^Scope, name: string) -> ^Var {
 }
 
 //@(require_results)
-//check_var_def :: proc(info: ^Info, var_def: VarDef) -> (error: Maybe(Error)) {
+//check_var_def :: proc(info: ^Info, var_def: VarDef) -> (error: Maybe(diagn.Error)) {
 //	value_type := expr_type(info, var_def.value)
 //	// i need to actually make an idectical check_type_eq but less strict
 //	// for var_def.value *LITERALS*, for example it should allow:
@@ -150,7 +152,7 @@ get_var :: proc(info: ^Info, scope: ^Scope, name: string) -> ^Var {
 //}
 
 @(require_results)
-check_func_sign :: proc(info: ^Info, func_sign: FuncSign) -> (error: Maybe(Error)) {
+check_func_sign :: proc(info: ^Info, func_sign: ast.FuncSign) -> (error: Maybe(diagn.Error)) {
 	if func_sign.name in info.funcs {
 		error = check_error("Function %q is already defined", func_sign.name)
 		return
@@ -181,7 +183,7 @@ check_func_sign :: proc(info: ^Info, func_sign: FuncSign) -> (error: Maybe(Error
 }
 
 @(require_results)
-check_func :: proc(info: ^Info, name: string) -> (func: Func, error: Maybe(Error)) {
+check_func :: proc(info: ^Info, name: string) -> (func: Func, error: Maybe(diagn.Error)) {
 	if name not_in info.funcs {
 		error = check_error("Function %q is not declared", name)
 		return
@@ -192,7 +194,7 @@ check_func :: proc(info: ^Info, name: string) -> (func: Func, error: Maybe(Error
 }
 
 @(require_results)
-check_func_call :: proc(info: ^Info, stmt: FuncCall) -> (error: Maybe(Error)) {
+check_func_call :: proc(info: ^Info, stmt: ast.FuncCall) -> (error: Maybe(diagn.Error)) {
 	func := check_func(info, stmt.name) or_return
 	func_is_variadic := false
 
@@ -241,7 +243,7 @@ check_func_call :: proc(info: ^Info, stmt: FuncCall) -> (error: Maybe(Error)) {
 }
 
 @(require_results)
-check_type_eq :: proc(type1, type2: Type) -> (error: Maybe(Error)) {
+check_type_eq :: proc(type1, type2: ast.Type) -> (error: Maybe(diagn.Error)) {
 	//if type1.type == type2.type {
 	//	return
 	//}
@@ -257,29 +259,29 @@ check_type_eq :: proc(type1, type2: Type) -> (error: Maybe(Error)) {
 	return check_error("Expected type %v but got %v", type1, type2)
 }
 
-expr_type :: proc(info: ^Info, expr: Expr) -> Type {
+expr_type :: proc(info: ^Info, expr: ast.Expr) -> ast.Type {
 	switch it in expr {
-	case Atom:
+	case ast.Atom:
 		switch it in it {
-		case Ident:
+		case ast.Ident:
 			var := get_var(info, info.current_scope, string(it))
 			assert(var != nil, "should have called check_expr before")
 			return var.type
-		case Literal:
+		case ast.Literal:
 			switch it in it {
 			case string: return .string
 			case int:    return .i32,;;;  // valid btw?!
 			}
 		}
-	case ^Un: unimplemented()
-	case ^Bin:
+	case ^ast.Un: unimplemented()
+	case ^ast.Bin:
 		return expr_type(info, it.lhs)
 	}
 
 	unreachable()
 }
 
-check_error :: proc(fmtstr: string, args: ..any, allocator := context.allocator) -> Error {
+check_error :: proc(fmtstr: string, args: ..any, allocator := context.allocator) -> diagn.Error {
 	context.allocator = allocator
 
 	return {

@@ -1,4 +1,4 @@
-package zeno
+package diagn
 
 import "base:runtime"
 
@@ -6,6 +6,10 @@ Error :: struct {
 	message: string,
 	span: Span,
 	loc: runtime.Source_Code_Location,
+}
+
+Span :: struct {
+	lo, hi: uint,
 }
 
 span_to_line_col :: proc(file: []u8, span: Span) -> (line, col: uint) {

@@ -1,4 +1,4 @@
-package cgen
+package cc
 
 import "core:strings"
 import "core:fmt"

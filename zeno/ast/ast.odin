@@ -1,4 +1,4 @@
-package zeno
+package ast
 
 // @todo: add #no_nil
 TopStmt :: union {
