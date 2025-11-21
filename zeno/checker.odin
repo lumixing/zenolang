@@ -7,6 +7,17 @@ Info :: struct {
 
 	type_map:     map[uint]Type,
 	type_map_ptr: uint,
+
+	current_scope: ^Scope,
+}
+
+Scope :: struct {
+	prev_scope: ^Scope,
+	vars: map[string]Var,
+}
+
+Var :: struct {
+	type: Type,
 }
 
 type_ptr :: proc(info: ^Info, type: Type) -> uint {
@@ -55,13 +66,36 @@ check :: proc(info: ^Info, top_stmts: []TopStmt) -> Maybe(Error) {
 
 @(require_results)
 check_block :: proc(info: ^Info, block: Block) -> (error: Maybe(Error)) {
-	for stmt in block {
-		// @partial
-		#partial switch stmt in stmt {
+	scope: Scope
+	scope.prev_scope = info.current_scope
+	info.current_scope = &scope
+
+	for it in block {
+		switch it in it {
 		case FuncCall:
-			check_func_call(info, stmt) or_return
+			check_func_call(info, it) or_return
 		case VarDef:
-			check_var_def(info, stmt) or_return
+			//check_var_def(info, it) or_return
+			var := get_var(info, info.current_scope, it.name)
+			if var != nil {
+				error = check_error("Variable %q is already defined", it.name)
+				return
+			}
+
+			check_expr(info, it.value) or_return
+			check_type_eq(it.type, expr_type(info, it.value)) or_return
+
+			info.current_scope.vars[it.name] = {
+				type = expr_type(info, it.value),
+			}
+		case Return:
+			// todo: check return type
+			if it, ok := it.value.?; ok {
+				check_expr(info, it) or_return
+			}
+		case While: unimplemented()
+		case If: unimplemented()
+		case Assign: unimplemented()
 		}
 	}
 
@@ -69,17 +103,51 @@ check_block :: proc(info: ^Info, block: Block) -> (error: Maybe(Error)) {
 }
 
 @(require_results)
-check_var_def :: proc(info: ^Info, var_def: VarDef) -> (error: Maybe(Error)) {
-	value_type := expr_type(info, var_def.value)
-	// i need to actually make an idectical check_type_eq but less strict
-	// for var_def.value *LITERALS*, for example it should allow:
-	// x u32 = 32  // even though this literal is default i32
-	// but now allow this:
-	// y u8 = 679  // not in bounds of u8
-	check_type_eq(var_def.type, value_type) or_return
+check_expr :: proc(info: ^Info, expr: Expr) -> (error: Maybe(Error)) {
+	switch it in expr {
+	case Atom:
+		#partial switch it in it {
+		case Ident:
+			var := get_var(info, info.current_scope, string(it))
+			if var == nil {
+				error = check_error("Variable %q is not defined", it)
+				return
+			}
+		}
+	case ^Un: unimplemented()
+	case ^Bin:
+		check_expr(info, it.lhs) or_return
+		check_expr(info, it.rhs) or_return
+		check_type_eq(expr_type(info, it.lhs), expr_type(info, it.rhs)) or_return
+	}
 
 	return
 }
+
+@(require_results)
+get_var :: proc(info: ^Info, scope: ^Scope, name: string) -> ^Var {
+	if var, ok := &scope.vars[name]; ok {
+		return var
+	}
+	if scope.prev_scope != nil {
+		return get_var(info, scope.prev_scope, name)
+	}
+
+	return nil
+}
+
+//@(require_results)
+//check_var_def :: proc(info: ^Info, var_def: VarDef) -> (error: Maybe(Error)) {
+//	value_type := expr_type(info, var_def.value)
+//	// i need to actually make an idectical check_type_eq but less strict
+//	// for var_def.value *LITERALS*, for example it should allow:
+//	// x u32 = 32  // even though this literal is default i32
+//	// but now allow this:
+//	// y u8 = 679  // not in bounds of u8
+//	check_type_eq(var_def.type, value_type) or_return
+
+//	return
+//}
 
 @(require_results)
 check_func_sign :: proc(info: ^Info, func_sign: FuncSign) -> (error: Maybe(Error)) {
@@ -190,19 +258,22 @@ check_type_eq :: proc(type1, type2: Type) -> (error: Maybe(Error)) {
 }
 
 expr_type :: proc(info: ^Info, expr: Expr) -> Type {
-	switch expr in expr {
+	switch it in expr {
 	case Atom:
-		switch atom in expr {
-		case Ident: unimplemented()
+		switch it in it {
+		case Ident:
+			var := get_var(info, info.current_scope, string(it))
+			assert(var != nil, "should have called check_expr before")
+			return var.type
 		case Literal:
-			switch lit in atom {
+			switch it in it {
 			case string: return .string
 			case int:    return .i32,;;;  // valid btw?!
 			}
 		}
 	case ^Un: unimplemented()
 	case ^Bin:
-		return expr_type(info, expr.lhs)
+		return expr_type(info, it.lhs)
 	}
 
 	unreachable()
