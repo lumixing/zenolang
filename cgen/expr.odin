@@ -78,6 +78,7 @@ Unop :: enum {
 	Deref,
 	Field,
 	DerefField,
+	BW_Not,
 }
 
 unop_str :: proc(unop: Unop) -> string {
@@ -89,6 +90,7 @@ unop_str :: proc(unop: Unop) -> string {
 	case .Deref:      return "*"
 	case .Field:      return "."
 	case .DerefField: return "->"
+	case .BW_Not:     return "!"
 	}
 
 	unreach()

@@ -344,7 +344,22 @@ prs_expr :: proc(prs: ^Parser, min_bp: u8 = 0, allocator := context.allocator) -
 	context.allocator = allocator
 	span_old := prs.span
 
-	lhs: ast.Expr = prs_atom(prs) or_return
+	lhs: ast.Expr
+	atom, atom_consumed, atom_err := prs_atom(prs)
+	lhs = atom
+	// idea: prs_recover() with prs.last_consumed
+	if atom_err != nil {
+		prs.span.hi -= atom_consumed
+		op, _ := prs_op(prs, prefix = true) or_return
+
+		r_bp := ast.prefix_bp(op)
+		rhs, _ := prs_expr(prs, r_bp) or_return
+
+		lhs = new_clone(ast.Un {
+			op = op.(ast.Unop),
+			expr = rhs,
+		})
+	}
 
 	for {
 		op, op_consumed, op_err := prs_op(prs)
@@ -373,8 +388,9 @@ prs_expr :: proc(prs: ^Parser, min_bp: u8 = 0, allocator := context.allocator) -
 	return
 }
 
-prs_atom :: proc(prs: ^Parser, allocator := context.allocator) -> (atom: ast.Atom, error: Maybe(diagn.Error)) {
+prs_atom :: proc(prs: ^Parser, allocator := context.allocator) -> (atom: ast.Atom, consumed: uint, error: Maybe(diagn.Error)) {
 	context.allocator = allocator
+	span_old := prs.span
 
 	token := prs_eat(prs) or_return
 	#partial switch token.type {
@@ -397,10 +413,11 @@ prs_atom :: proc(prs: ^Parser, allocator := context.allocator) -> (atom: ast.Ato
 		error = prs_error(prs, "Expected atom but got %v (%v)", token.type, token.value)
 	}
 
+	consumed = prs.span.hi - span_old.hi
 	return
 }
 
-prs_op :: proc(prs: ^Parser, allocator := context.allocator) -> (op: ast.Op, consumed: uint, error: Maybe(diagn.Error)) {
+prs_op :: proc(prs: ^Parser, prefix := false,allocator := context.allocator) -> (op: ast.Op, consumed: uint, error: Maybe(diagn.Error)) {
 	context.allocator = allocator
 	span_old := prs.span
 
@@ -409,13 +426,15 @@ prs_op :: proc(prs: ^Parser, allocator := context.allocator) -> (op: ast.Op, con
 	case .Plus:
 		op = .Add
 	case .Hyphen:
-		op = .Sub
+		op = prefix ? .Neg : .Sub
 	case .Asterisk:
 		op = .Mult
 	case .LessThan:
 		op = .LessThan
 	case .GreaterThan:
 		op = .GreaterThan
+	case .Exclaim:
+		op = .BW_Not
 	case:
 		error = prs_error(prs, "Expected operator but got %v (%v)", token.type, token.value)
 	}

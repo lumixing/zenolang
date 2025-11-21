@@ -2,6 +2,5 @@
 
 main() i32 {
 	n i32 = printf("hello world\n")
-	printf("printed %d\n", n)
 	return 0
 }

@@ -33,10 +33,10 @@ main() void {
 
 	bx i32 = 700
 	by i32 = 200
-	bvx i32 = 0-5
-	bvy i32 = 0-5
+	bvx i32 = -5
+	bvy i32 = -5
 
-	for true {
+	for !WindowShouldClose() {
 		y0 = GetMouseY()
 
 		if bx < 32 {
@@ -51,12 +51,12 @@ main() void {
 
 		if bx > 800-32 {
 			bx = 800-32
-			bvx = 0-5
+			bvx = -5
 		}
 
 		if by > 600 {
 			by = 600
-			bvy = 0-5
+			bvy = -5
 		}
 
 		bx = bx + bvx

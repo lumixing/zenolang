@@ -164,8 +164,17 @@ expr_to_c :: proc(state: ^cgen.State, expr: ast.Expr) -> cgen.Expr {
 				args = args_to_c(state, atom.args),
 			})
 		}
-	case ^ast.Un: unimplemented()
+	case ^ast.Un:
+		switch expr.op {
+		case .Neg:
+			append(&atoms, cgen.Unop.Neg)
+			append(&atoms, expr_to_c(state, expr.expr))
+		case .BW_Not:
+			append(&atoms, cgen.Unop.BW_Not)
+			append(&atoms, expr_to_c(state, expr.expr))
+		}
 	case ^ast.Bin:
+		// we can very easily DRY this
 		switch expr.op {
 		case .Add:
 			append(&atoms, expr_to_c(state, expr.lhs))

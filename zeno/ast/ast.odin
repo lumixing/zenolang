@@ -127,6 +127,8 @@ Un :: struct {
 }
 
 Unop :: enum {
+	BW_Not,
+	Neg,
 }
 
 Bin :: struct {
@@ -143,13 +145,28 @@ Binop :: enum {
 	GreaterThan,
 }
 
+prefix_bp :: proc(op: Op) -> u8 {
+	#partial switch it in op {
+	case Unop:
+		switch it {
+		case .Neg, .BW_Not:
+			return 7
+		}
+	}
+
+	panic("you did something very VERY wrong")
+}
+
 infix_bp :: proc(op: Op) -> (u8, u8) {
 	#partial switch op in op {
 	case Binop:
 		switch op {
-		case .LessThan, .GreaterThan: return 1, 2
-		case .Add, .Sub:  return 3, 4
-		case .Mult: return 5, 6
+		case .LessThan, .GreaterThan:
+			return 1, 2
+		case .Add, .Sub:
+			return 3, 4
+		case .Mult:
+			return 5, 6
 		}
 	}
 

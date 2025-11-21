@@ -119,7 +119,7 @@ check_expr :: proc(info: ^Info, expr: ast.Expr) -> (error: Maybe(diagn.Error)) {
 		case ast.FuncCall:
 			check_func_call(info, it) or_return
 		}
-	case ^ast.Un: unimplemented()
+	case ^ast.Un:
 	case ^ast.Bin:
 		check_expr(info, it.lhs) or_return
 		check_expr(info, it.rhs) or_return
@@ -280,7 +280,8 @@ expr_type :: proc(info: ^Info, expr: ast.Expr) -> ast.Type {
 			assert(it.name in info.funcs)
 			return info.funcs[it.name].sign.return_type
 		}
-	case ^ast.Un: unimplemented()
+	case ^ast.Un:
+		return expr_type(info, it.expr)
 	case ^ast.Bin:
 		return expr_type(info, it.lhs)
 	}

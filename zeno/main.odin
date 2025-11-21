@@ -5,7 +5,7 @@ import check "checker"
 import "diagn"
 import cgen "gen/c"
 
-FILE :: "raylib.zn"
+FILE :: "hello.zn"
 
 main :: proc() {
 	file := #load("../" + FILE)
