@@ -3,14 +3,15 @@ package zeno
 import "core:unicode"
 import "core:strconv"
 import "core:fmt"
+import "diagn"
 
 Lexer :: struct {
 	input: []u8,
 	tokens: [dynamic]Token,
-	span: Span,
+	span: diagn.Span,
 }
 
-lexer_scan :: proc(lexer: ^Lexer, input: []u8, allocator := context.allocator) -> (error: Maybe(Error)) {
+lexer_scan :: proc(lexer: ^Lexer, input: []u8, allocator := context.allocator) -> (error: Maybe(diagn.Error)) {
 	context.allocator = allocator
 
 	lexer.input = input
@@ -29,9 +30,9 @@ lexer_scan :: proc(lexer: ^Lexer, input: []u8, allocator := context.allocator) -
 		case ',':  lexer_add_token(lexer, .Comma)
 		case '#':  lexer_add_token(lexer, .Hash)
 		case '^':  lexer_add_token(lexer, .Caret)
-		case '=':  lexer_add_token(lexer, .Eq)
 		case '!':  lexer_add_token(lexer, .Exclaim)
 		case '+':  lexer_add_token(lexer, .Plus)
+		case '*':  lexer_add_token(lexer, .Asterisk)
 		case '-':  lexer_add_token(lexer, .Hyphen)
 		case '<':  lexer_add_token(lexer, .LessThan)
 		case '>':  lexer_add_token(lexer, .GreaterThan)
@@ -41,6 +42,13 @@ lexer_scan :: proc(lexer: ^Lexer, input: []u8, allocator := context.allocator) -
 				lexer_add_token(lexer, .DotDot)
 			} else {
 				lexer_add_token(lexer, .Dot)
+			}
+		case '=':
+			if (lexer_peek(lexer) or_return) == '=' {
+				lexer_eat(lexer) or_return
+				lexer_add_token(lexer, .EqEq)
+			} else {
+				lexer_add_token(lexer, .Eq)
 			}
 		case '"':
 			for {
@@ -129,7 +137,7 @@ lexer_add_token :: proc(lexer: ^Lexer, type: TokenType, value: TokenValue = nil)
 	})
 }
 
-lexer_error :: proc(lexer: ^Lexer, fmtstr: string, args: ..any, allocator := context.allocator) -> Error {
+lexer_error :: proc(lexer: ^Lexer, fmtstr: string, args: ..any, allocator := context.allocator) -> diagn.Error {
 	context.allocator = allocator
 
 	return {
@@ -138,7 +146,7 @@ lexer_error :: proc(lexer: ^Lexer, fmtstr: string, args: ..any, allocator := con
 	}
 }
 
-lexer_eat :: proc(lexer: ^Lexer) -> (char: u8, error: Maybe(Error)) {
+lexer_eat :: proc(lexer: ^Lexer) -> (char: u8, error: Maybe(diagn.Error)) {
 	if lexer_end(lexer) {
 		error = lexer_error(lexer, "Could not eat")
 		return
@@ -149,7 +157,7 @@ lexer_eat :: proc(lexer: ^Lexer) -> (char: u8, error: Maybe(Error)) {
 	return
 }
 
-lexer_peek :: proc(lexer: ^Lexer) -> (char: u8, error: Maybe(Error)) {
+lexer_peek :: proc(lexer: ^Lexer) -> (char: u8, error: Maybe(diagn.Error)) {
 	if lexer_end(lexer) {
 		error = lexer_error(lexer, "Could not peek")
 		return

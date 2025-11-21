@@ -3,5 +3,13 @@
 !README.md
 !*.odin
 !cgen
+!iris
+!nasm
 !zeno
+!zeno/ast
+!zeno/checker
+!zeno/diagn
+!zeno/gen
+!zeno/gen/c
+!zeno/gen/iris
 !*.zn

@@ -1,4 +1,4 @@
-package zeno
+package ast
 
 // @todo: add #no_nil
 TopStmt :: union {
@@ -96,16 +96,20 @@ Assign :: struct {
 	rhs: Expr,
 }
 
-Expr :: distinct []ExprAtom
-
-ExprAtom :: union #no_nil {
-	Expr,
-	Literal,
-	Ident,
-	FuncCall,
-	Unop, // i just had a revolation, what if Unop/Binop was distinct Expr
-	Binop,
+Expr :: union #no_nil {
+	^Expr,
+	Atom,
+	^Un,
+	^Bin,
 }
+
+Atom :: union #no_nil {
+	Ident,
+	Literal,
+	FuncCall,
+}
+
+Ident :: distinct string
 
 Literal :: union #no_nil {
 	string,
@@ -113,15 +117,63 @@ Literal :: union #no_nil {
 	bool,
 }
 
-Ident :: distinct string
+Op :: union #no_nil {
+	Unop,
+	Binop,
+}
+
+Un :: struct {
+	op: Unop,
+	expr: Expr,
+}
 
 Unop :: enum {
-	Not,
+	BW_Not,
 	Neg,
+	Deref,
+}
+
+Bin :: struct {
+	op: Binop,
+	lhs: Expr,
+	rhs: Expr,
 }
 
 Binop :: enum {
+	Add,
+	Sub,
+	Mult,
 	LessThan,
 	GreaterThan,
-	Add,
+	Eq,
+}
+
+prefix_bp :: proc(op: Op) -> u8 {
+	#partial switch it in op {
+	case Unop:
+		switch it {
+		case .Neg, .BW_Not, .Deref:
+			return 9
+		}
+	}
+
+	panic("you did something very VERY wrong")
+}
+
+infix_bp :: proc(op: Op) -> (u8, u8) {
+	#partial switch op in op {
+	case Binop:
+		switch op {
+		case .Eq:
+			return 1, 2
+		case .LessThan, .GreaterThan:
+			return 3, 4
+		case .Add, .Sub:
+			return 5, 6
+		case .Mult:
+			return 7, 8
+		}
+	}
+
+	panic("you did something very VERY wrong")
 }

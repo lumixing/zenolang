@@ -1,9 +1,11 @@
 package zeno
 
+import "diagn"
+
 Token :: struct {
 	type: TokenType,
 	value: TokenValue,
-	span: Span,
+	span: diagn.Span,
 }
 
 TokenType :: enum {
@@ -17,8 +19,10 @@ TokenType :: enum {
 	Hash,
 	Caret = '^', // omg pls try this idea i beg you
 	Eq,
+	EqEq,
 	Exclaim,
 	Plus,
+	Asterisk,
 	Hyphen,
 
 	LessThan,
@@ -48,8 +52,4 @@ TokenType :: enum {
 TokenValue :: union {
 	string,
 	int,
-}
-
-Span :: struct {
-	lo, hi: uint,
 }

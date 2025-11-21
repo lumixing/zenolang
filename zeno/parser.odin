@@ -2,15 +2,18 @@ package zeno
 
 import "base:runtime"
 import "core:fmt"
+import "ast"
+import "diagn"
+import check "checker"
 
 Parser :: struct {
 	tokens: []Token,
-	top_stmts: [dynamic]TopStmt,
-	span: Span,
-	info: ^Info,
+	top_stmts: [dynamic]ast.TopStmt,
+	span: diagn.Span,
+	info: ^check.Info,
 }
 
-prs_parse :: proc(prs: ^Parser, info: ^Info, tokens: []Token, allocator := context.allocator) -> (error: Maybe(Error)) {
+prs_parse :: proc(prs: ^Parser, info: ^check.Info, tokens: []Token, allocator := context.allocator) -> (error: Maybe(diagn.Error)) {
 	context.allocator = allocator
 
 	prs.tokens = tokens
@@ -31,7 +34,7 @@ prs_parse :: proc(prs: ^Parser, info: ^Info, tokens: []Token, allocator := conte
 	return
 }
 
-prs_top_stmt :: proc(prs: ^Parser, allocator := context.allocator) -> (top_stmt: TopStmt, error: Maybe(Error)) {
+prs_top_stmt :: proc(prs: ^Parser, allocator := context.allocator) -> (top_stmt: ast.TopStmt, error: Maybe(diagn.Error)) {
 	context.allocator = allocator
 
 	token := prs_peek(prs) or_return
@@ -44,7 +47,7 @@ prs_top_stmt :: proc(prs: ^Parser, allocator := context.allocator) -> (top_stmt:
 		switch name {
 		case "foreign":
 			dir := prs_dir_foreign(prs) or_return
-			top_stmt = Directive(dir)
+			top_stmt = ast.Directive(dir)
 		case:
 			error = prs_error(prs, "Unknown directive: %q", name)
 		}
@@ -57,7 +60,7 @@ prs_top_stmt :: proc(prs: ^Parser, allocator := context.allocator) -> (top_stmt:
 	return
 }
 
-prs_dir_foreign :: proc(prs: ^Parser, allocator := context.allocator) -> (dir_foreign: DirectiveForeign, error: Maybe(Error)) {
+prs_dir_foreign :: proc(prs: ^Parser, allocator := context.allocator) -> (dir_foreign: ast.DirectiveForeign, error: Maybe(diagn.Error)) {
 	context.allocator = allocator
 
 	_ = prs_expect(prs, .LParen) or_return
@@ -76,7 +79,7 @@ prs_dir_foreign :: proc(prs: ^Parser, allocator := context.allocator) -> (dir_fo
 	return
 }
 
-prs_func_def :: proc(prs: ^Parser, allocator := context.allocator) -> (func_def: FuncDef, error: Maybe(Error)) {
+prs_func_def :: proc(prs: ^Parser, allocator := context.allocator) -> (func_def: ast.FuncDef, error: Maybe(diagn.Error)) {
 	context.allocator = allocator
 	
 	func_sign := prs_func_sign(prs) or_return
@@ -89,7 +92,7 @@ prs_func_def :: proc(prs: ^Parser, allocator := context.allocator) -> (func_def:
 	return
 }
 
-prs_func_sign :: proc(prs: ^Parser, allocator := context.allocator) -> (func_sign: FuncSign, error: Maybe(Error)) {
+prs_func_sign :: proc(prs: ^Parser, allocator := context.allocator) -> (func_sign: ast.FuncSign, error: Maybe(diagn.Error)) {
 	context.allocator = allocator
 
 	name := (prs_expect(prs, .Ident) or_return).(string)
@@ -97,7 +100,7 @@ prs_func_sign :: proc(prs: ^Parser, allocator := context.allocator) -> (func_sig
 	_ = prs_expect(prs, .LParen) or_return
 	prs_forgive_newlines(prs) or_return
 
-	params: [dynamic]Param
+	params: [dynamic]ast.Param
 	if (prs_peek(prs) or_return).type != .RParen {
 		expr := prs_param(prs) or_return
 		append(&params, expr)
@@ -124,7 +127,7 @@ prs_func_sign :: proc(prs: ^Parser, allocator := context.allocator) -> (func_sig
 	return
 }
 
-prs_param :: proc(prs: ^Parser, allocator := context.allocator) -> (param: Param, error: Maybe(Error)) {
+prs_param :: proc(prs: ^Parser, allocator := context.allocator) -> (param: ast.Param, error: Maybe(diagn.Error)) {
 	context.allocator = allocator
 
 	prs_forgive_newlines(prs) or_return
@@ -138,18 +141,18 @@ prs_param :: proc(prs: ^Parser, allocator := context.allocator) -> (param: Param
 	return
 }
 
-prs_type :: proc(prs: ^Parser, allocator := context.allocator) -> (type: Type, error: Maybe(Error)) {
+prs_type :: proc(prs: ^Parser, allocator := context.allocator) -> (type: ast.Type, error: Maybe(diagn.Error)) {
 	context.allocator = allocator
 
 	token := prs_eat(prs) or_return
 
 	#partial switch token.type {
 	case .DotDot:
-		type = Variadic(type_ptr(prs.info, prs_type(prs) or_return))
+		type = ast.Variadic(check.type_ptr(prs.info, prs_type(prs) or_return))
 	case .Caret:
-		type = Pointer(type_ptr(prs.info, prs_type(prs) or_return))
+		type = ast.Pointer(check.type_ptr(prs.info, prs_type(prs) or_return))
 	case .Ident:
-		type = UserType(token.value.(string))
+		type = ast.UserType(token.value.(string))
 	case .KW_void:   type = .void
 	case .KW_string: type = .string
 	case .KW_any:    type = .any
@@ -164,12 +167,12 @@ prs_type :: proc(prs: ^Parser, allocator := context.allocator) -> (type: Type, e
 	return
 }
 
-prs_block :: proc(prs: ^Parser, allocator := context.allocator) -> (block: Block, error: Maybe(Error)) {
+prs_block :: proc(prs: ^Parser, allocator := context.allocator) -> (block: ast.Block, error: Maybe(diagn.Error)) {
 	context.allocator = allocator
 
 	prs_forgive_newlines(prs) or_return
 	_ = prs_expect(prs, .LBrace) or_return
-	stmts: [dynamic]Stmt
+	stmts: [dynamic]ast.Stmt
 
 	prs_forgive_newlines(prs) or_return
 	for (prs_peek(prs) or_return).type != .RBrace {
@@ -193,7 +196,7 @@ prs_block :: proc(prs: ^Parser, allocator := context.allocator) -> (block: Block
 }
 
 @(require_results)
-prs_forgive_newlines :: proc(prs: ^Parser) -> (error: Maybe(Error)) {
+prs_forgive_newlines :: proc(prs: ^Parser) -> (error: Maybe(diagn.Error)) {
 	for (prs_peek(prs) or_return).type == .Newline {
 		prs_eat(prs) or_return
 	}
@@ -201,7 +204,7 @@ prs_forgive_newlines :: proc(prs: ^Parser) -> (error: Maybe(Error)) {
 	return
 }
 
-prs_stmt :: proc(prs: ^Parser, allocator := context.allocator) -> (stmt: Stmt, error: Maybe(Error)) {
+prs_stmt :: proc(prs: ^Parser, allocator := context.allocator) -> (stmt: ast.Stmt, error: Maybe(diagn.Error)) {
 	context.allocator = allocator
 
 	token := prs_peek(prs) or_return
@@ -227,13 +230,13 @@ prs_stmt :: proc(prs: ^Parser, allocator := context.allocator) -> (stmt: Stmt, e
 	case .KW_return:
 		stmt = prs_return(prs) or_return
 	case:
-		error = prs_error(prs, "Expected statement but got %v", token.type)
+		stmt = prs_assign(prs) or_return
 	}
 
 	return
 }
 
-prs_while :: proc(prs: ^Parser, allocator := context.allocator) -> (while: While, error: Maybe(Error)) {
+prs_while :: proc(prs: ^Parser, allocator := context.allocator) -> (while: ast.While, error: Maybe(diagn.Error)) {
 	context.allocator = allocator
 
 	_ = prs_expect(prs, .KW_for) or_return
@@ -247,7 +250,7 @@ prs_while :: proc(prs: ^Parser, allocator := context.allocator) -> (while: While
 	return
 }
 
-prs_if :: proc(prs: ^Parser, allocator := context.allocator) -> (if_: If, error: Maybe(Error)) {
+prs_if :: proc(prs: ^Parser, allocator := context.allocator) -> (if_: ast.If, error: Maybe(diagn.Error)) {
 	context.allocator = allocator
 
 	_ = prs_expect(prs, .KW_if) or_return
@@ -261,12 +264,12 @@ prs_if :: proc(prs: ^Parser, allocator := context.allocator) -> (if_: If, error:
 	return
 }
 
-prs_func_call :: proc(prs: ^Parser, allocator := context.allocator) -> (func_call: FuncCall, error: Maybe(Error)) {
+prs_func_call :: proc(prs: ^Parser, allocator := context.allocator) -> (func_call: ast.FuncCall, error: Maybe(diagn.Error)) {
 	context.allocator = allocator
 
 	name := (prs_expect(prs, .Ident) or_return).(string)
 	_ = prs_expect(prs, .LParen) or_return
-	args: [dynamic]Expr
+	args: [dynamic]ast.Expr
 
 	if (prs_peek(prs) or_return).type != .RParen {
 		expr, _ := prs_expr(prs) or_return
@@ -290,7 +293,7 @@ prs_func_call :: proc(prs: ^Parser, allocator := context.allocator) -> (func_cal
 	return
 }
 
-prs_assign :: proc(prs: ^Parser, allocator := context.allocator) -> (assign: Assign, error: Maybe(Error)) {
+prs_assign :: proc(prs: ^Parser, allocator := context.allocator) -> (assign: ast.Assign, error: Maybe(diagn.Error)) {
 	context.allocator = allocator
 
 	lhs, _ := prs_expr(prs) or_return
@@ -304,7 +307,7 @@ prs_assign :: proc(prs: ^Parser, allocator := context.allocator) -> (assign: Ass
 	return
 }
 
-prs_var_def :: proc(prs: ^Parser, allocator := context.allocator) -> (var_def: VarDef, error: Maybe(Error)) {
+prs_var_def :: proc(prs: ^Parser, allocator := context.allocator) -> (var_def: ast.VarDef, error: Maybe(diagn.Error)) {
 	context.allocator = allocator
 
 	name := (prs_expect(prs, .Ident) or_return).(string)
@@ -320,7 +323,7 @@ prs_var_def :: proc(prs: ^Parser, allocator := context.allocator) -> (var_def: V
 	return
 }
 
-prs_return :: proc(prs: ^Parser, allocator := context.allocator) -> (ret: Return, error: Maybe(Error)) {
+prs_return :: proc(prs: ^Parser, allocator := context.allocator) -> (ret: ast.Return, error: Maybe(diagn.Error)) {
 	context.allocator = allocator
 
 	_ = prs_expect(prs, .KW_return) or_return
@@ -337,69 +340,117 @@ prs_return :: proc(prs: ^Parser, allocator := context.allocator) -> (ret: Return
 	return
 }
 
-prs_expr :: proc(prs: ^Parser, allocator := context.allocator) -> (expr: Expr, consumed: uint, error: Maybe(Error)) {
+prs_expr :: proc(prs: ^Parser, min_bp: u8 = 0, allocator := context.allocator) -> (expr: ast.Expr, consumed: uint, error: Maybe(diagn.Error)) {
 	context.allocator = allocator
 	span_old := prs.span
-
-	dyn_expr: [dynamic]ExprAtom
 	
-	for {
-		expr_atom, consumed, err := prs_expr_atom(prs)
-		if err, ok := err.?; ok {
-			prs.span.hi -= consumed
-			break
+	lhs: ast.Expr
+
+	if (prs_peek(prs) or_return).type == .LParen {
+		prs_eat(prs) or_return
+		ex, _ := prs_expr(prs, 0) or_return
+		_ = prs_expect(prs, .RParen) or_return
+
+		expr = new_clone(ex)
+		return
+	} else {
+		atom, atom_consumed, atom_err := prs_atom(prs)
+		lhs = atom
+		// idea: prs_recover() with prs.last_consumed
+		if atom_err != nil {
+			prs.span.hi -= atom_consumed
+			op, _ := prs_op(prs, prefix = true) or_return
+	
+			r_bp := ast.prefix_bp(op)
+			rhs, _ := prs_expr(prs, r_bp) or_return
+	
+			lhs = new_clone(ast.Un {
+				op = op.(ast.Unop),
+				expr = rhs,
+			})
 		}
-		append(&dyn_expr, expr_atom)
 	}
 
-	if len(dyn_expr) == 0 {
-		fmt.println("hacking")
-		prs_expr_atom(prs) or_return  // @hack
+	for {
+		op, op_consumed, op_err := prs_op(prs)
+		if op_err != nil {
+			prs.span.hi -= op_consumed
+			break
+		}
+
+		l_bp, r_bp := ast.infix_bp(op)
+		if l_bp < min_bp {
+			prs.span.hi -= op_consumed
+			break
+		}
+
+		rhs, _ := prs_expr(prs, r_bp) or_return
+
+		lhs = new_clone(ast.Bin {
+			op = op.(ast.Binop),
+			lhs = lhs,
+			rhs = rhs,
+		})
 	}
 
 	consumed = prs.span.hi - span_old.hi
-	expr = Expr(dyn_expr[:])
+	expr = lhs
 	return
 }
 
-prs_expr_atom :: proc(prs: ^Parser, allocator := context.allocator) -> (expr_atom: ExprAtom, consumed: uint, error: Maybe(Error)) {
+prs_atom :: proc(prs: ^Parser, allocator := context.allocator) -> (atom: ast.Atom, consumed: uint, error: Maybe(diagn.Error)) {
 	context.allocator = allocator
 	span_old := prs.span
 
 	token := prs_eat(prs) or_return
-	
 	#partial switch token.type {
-	case .LessThan:
-		expr_atom = .LessThan
-	case .GreaterThan:
-		expr_atom = .GreaterThan
-	case .Exclaim:
-		expr_atom = .Not
-	case .Plus:
-		expr_atom = .Add
-	case .Hyphen:
-		expr_atom = .Neg
-	case .String:
-		expr_atom = Literal(token.value.(string))
-	case .Integer:
-		expr_atom = Literal(token.value.(int))
 	case .Ident:
-		prs.span.hi -= 1  // hacky but i dont wanna peek top `token`
-		token_1 := prs_peek(prs, 1) or_return
-
-		#partial switch token_1.type {
-		case .LParen:
-			expr_atom = prs_func_call(prs) or_return
-		case:
-			_ = prs_expect(prs, .Ident) or_return
-			expr_atom = Ident(token.value.(string))
+		if (prs_peek(prs) or_return).type == .LParen {
+			prs.span.hi -= 1
+			atom = prs_func_call(prs) or_return
+		} else {
+			atom = ast.Ident(token.value.(string))
 		}
+	case .String:
+		atom = ast.Literal(token.value.(string))
+	case .Integer:
+		atom = ast.Literal(token.value.(int))
 	case .KW_true:
-		expr_atom = Literal(true)
+		atom = ast.Literal(true)
 	case .KW_false:
-		expr_atom = Literal(false)
+		atom = ast.Literal(false)
 	case:
-		error = prs_error(prs, "Expected expression but got %v (%v)", token.type, token.value)
+		error = prs_error(prs, "Expected atom but got %v (%v)", token.type, token.value)
+	}
+
+	consumed = prs.span.hi - span_old.hi
+	return
+}
+
+prs_op :: proc(prs: ^Parser, prefix := false,allocator := context.allocator) -> (op: ast.Op, consumed: uint, error: Maybe(diagn.Error)) {
+	context.allocator = allocator
+	span_old := prs.span
+
+	token := prs_eat(prs) or_return
+	#partial switch token.type {
+	case .Plus:
+		op = .Add
+	case .Hyphen:
+		op = prefix ? .Neg : .Sub
+	case .Asterisk:
+		op = .Mult
+	case .LessThan:
+		op = .LessThan
+	case .GreaterThan:
+		op = .GreaterThan
+	case .Exclaim:
+		op = .BW_Not
+	case .Caret:
+		op = .Deref
+	case .EqEq:
+		op = .Eq
+	case:
+		error = prs_error(prs, "Expected operator but got %v (%v)", token.type, token.value)
 	}
 
 	consumed = prs.span.hi - span_old.hi
@@ -407,7 +458,7 @@ prs_expr_atom :: proc(prs: ^Parser, allocator := context.allocator) -> (expr_ato
 }
 
 @(require_results)
-prs_expect :: proc(prs: ^Parser, type: TokenType, allocator := context.allocator, loc := #caller_location) -> (value: TokenValue, error: Maybe(Error)) {
+prs_expect :: proc(prs: ^Parser, type: TokenType, allocator := context.allocator, loc := #caller_location) -> (value: TokenValue, error: Maybe(diagn.Error)) {
 	context.allocator = allocator
 
 	token := prs_eat(prs) or_return
@@ -421,7 +472,7 @@ prs_expect :: proc(prs: ^Parser, type: TokenType, allocator := context.allocator
 	return
 }
 
-prs_error :: proc(prs: ^Parser, fmtstr: string, args: ..any, allocator := context.allocator, loc := #caller_location) -> Error {
+prs_error :: proc(prs: ^Parser, fmtstr: string, args: ..any, allocator := context.allocator, loc := #caller_location) -> diagn.Error {
 	context.allocator = allocator
 
 	return {
@@ -431,7 +482,7 @@ prs_error :: proc(prs: ^Parser, fmtstr: string, args: ..any, allocator := contex
 	}
 }
 
-prs_eat :: proc(prs: ^Parser) -> (token: Token, error: Maybe(Error)) {
+prs_eat :: proc(prs: ^Parser) -> (token: Token, error: Maybe(diagn.Error)) {
 	if prs_end(prs) {
 		error = prs_error(prs, "Could not eat")
 		return
@@ -442,7 +493,7 @@ prs_eat :: proc(prs: ^Parser) -> (token: Token, error: Maybe(Error)) {
 	return
 }
 
-prs_peek :: proc(prs: ^Parser, ahead: uint = 0) -> (token: Token, error: Maybe(Error)) {
+prs_peek :: proc(prs: ^Parser, ahead: uint = 0) -> (token: Token, error: Maybe(diagn.Error)) {
 	if prs_end(prs, ahead) {
 		error = prs_error(prs, "Could not peek")
 		return

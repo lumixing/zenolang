@@ -1,4 +1,4 @@
-package cgen
+package cc
 
 import "core:strings"
 import "core:fmt"
@@ -78,6 +78,7 @@ Unop :: enum {
 	Deref,
 	Field,
 	DerefField,
+	BW_Not,
 }
 
 unop_str :: proc(unop: Unop) -> string {
@@ -89,6 +90,7 @@ unop_str :: proc(unop: Unop) -> string {
 	case .Deref:      return "*"
 	case .Field:      return "."
 	case .DerefField: return "->"
+	case .BW_Not:     return "!"
 	}
 
 	unreach()
@@ -96,6 +98,7 @@ unop_str :: proc(unop: Unop) -> string {
 
 Binop :: enum {
 	Add,
+	Sub,
 	Mult,
 	Div,
 
@@ -105,11 +108,13 @@ Binop :: enum {
 
 	LessThan,
 	GreaterThan,
+	Eq,
 }
 
 binop_str :: proc(binop: Binop) -> string {
 	switch binop {
 	case .Add:       return "+"
+	case .Sub:       return "-"
 	case .Mult:      return "*"
 	case .Div:       return "/"
 	case .BW_And:    return "&"
@@ -117,6 +122,7 @@ binop_str :: proc(binop: Binop) -> string {
 	case .BW_RShift: return ">>"
 	case .LessThan:  return "<"
 	case .GreaterThan:  return ">"
+	case .Eq:  return "=="
 	}
 
 	unreach()
