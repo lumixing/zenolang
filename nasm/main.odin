@@ -112,7 +112,7 @@ const_expr_str :: proc(expr: ConstExpr) -> string {
 	case int:    return ff("%d", e)
 	}
 
-	unreachable()
+	unimplemented()
 }
 
 @(private)

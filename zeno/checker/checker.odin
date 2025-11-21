@@ -107,6 +107,8 @@ check_block :: proc(info: ^Info, block: ast.Block) -> (error: Maybe(diagn.Error)
 @(require_results)
 check_expr :: proc(info: ^Info, expr: ast.Expr) -> (error: Maybe(diagn.Error)) {
 	switch it in expr {
+	case ^ast.Expr:
+		check_expr(info, it) or_return
 	case ast.Atom:
 		switch it in it {
 		case ast.Literal:
@@ -264,6 +266,8 @@ check_type_eq :: proc(type1, type2: ast.Type) -> (error: Maybe(diagn.Error)) {
 
 expr_type :: proc(info: ^Info, expr: ast.Expr) -> ast.Type {
 	switch it in expr {
+	case ^ast.Expr:
+		return expr_type(info, it)
 	case ast.Atom:
 		switch it in it {
 		case ast.Ident:
@@ -286,7 +290,7 @@ expr_type :: proc(info: ^Info, expr: ast.Expr) -> ast.Type {
 		return expr_type(info, it.lhs)
 	}
 
-	unreachable()
+	unimplemented()
 }
 
 check_error :: proc(fmtstr: string, args: ..any, allocator := context.allocator) -> diagn.Error {

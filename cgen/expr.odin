@@ -108,6 +108,7 @@ Binop :: enum {
 
 	LessThan,
 	GreaterThan,
+	Eq,
 }
 
 binop_str :: proc(binop: Binop) -> string {
@@ -121,6 +122,7 @@ binop_str :: proc(binop: Binop) -> string {
 	case .BW_RShift: return ">>"
 	case .LessThan:  return "<"
 	case .GreaterThan:  return ">"
+	case .Eq:  return "=="
 	}
 
 	unreach()

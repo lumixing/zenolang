@@ -1,6 +1,37 @@
 #foreign("stdio.h") printf(fmt str) i32
+#foreign("string.h") strlen(fmt str) i32
+#foreign("stdlib.h") calloc(size i32) ^u8
+#foreign("stdlib.h") free(addr ^u8) void
 
 main() i32 {
-	n i32 = printf("hello world\n")
+	input2 string = "++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++."
+	input string = "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++.+++++++++++++++++++++++++++++++++.."
+	pc i32 = 0
+
+	buf ^u8 = calloc(1024, 1)
+	dp i32 = 0
+
+	len i32 = strlen(input)
+	for pc < len {
+		ch u8 = ^(input+pc)
+		if ch == 43 {
+			^(buf+dp) = ^(buf+dp) + 1
+			pc = pc + 1
+		}
+
+		if ch == 45 {
+			^(buf+dp) = ^(buf+dp) - 1
+			pc = pc + 1
+		}
+
+		if ch == 46 {
+			printf("%c", ^(buf+dp))
+			pc = pc + 1
+		}
+	}
+
+	printf("\n")
+
+	free(buf)
 	return 0
 }

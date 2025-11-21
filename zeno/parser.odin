@@ -230,7 +230,7 @@ prs_stmt :: proc(prs: ^Parser, allocator := context.allocator) -> (stmt: ast.Stm
 	case .KW_return:
 		stmt = prs_return(prs) or_return
 	case:
-		error = prs_error(prs, "Expected statement but got %v", token.type)
+		stmt = prs_assign(prs) or_return
 	}
 
 	return
@@ -343,22 +343,32 @@ prs_return :: proc(prs: ^Parser, allocator := context.allocator) -> (ret: ast.Re
 prs_expr :: proc(prs: ^Parser, min_bp: u8 = 0, allocator := context.allocator) -> (expr: ast.Expr, consumed: uint, error: Maybe(diagn.Error)) {
 	context.allocator = allocator
 	span_old := prs.span
-
+	
 	lhs: ast.Expr
-	atom, atom_consumed, atom_err := prs_atom(prs)
-	lhs = atom
-	// idea: prs_recover() with prs.last_consumed
-	if atom_err != nil {
-		prs.span.hi -= atom_consumed
-		op, _ := prs_op(prs, prefix = true) or_return
 
-		r_bp := ast.prefix_bp(op)
-		rhs, _ := prs_expr(prs, r_bp) or_return
+	if (prs_peek(prs) or_return).type == .LParen {
+		prs_eat(prs) or_return
+		ex, _ := prs_expr(prs, 0) or_return
+		_ = prs_expect(prs, .RParen) or_return
 
-		lhs = new_clone(ast.Un {
-			op = op.(ast.Unop),
-			expr = rhs,
-		})
+		expr = new_clone(ex)
+		return
+	} else {
+		atom, atom_consumed, atom_err := prs_atom(prs)
+		lhs = atom
+		// idea: prs_recover() with prs.last_consumed
+		if atom_err != nil {
+			prs.span.hi -= atom_consumed
+			op, _ := prs_op(prs, prefix = true) or_return
+	
+			r_bp := ast.prefix_bp(op)
+			rhs, _ := prs_expr(prs, r_bp) or_return
+	
+			lhs = new_clone(ast.Un {
+				op = op.(ast.Unop),
+				expr = rhs,
+			})
+		}
 	}
 
 	for {
@@ -435,6 +445,10 @@ prs_op :: proc(prs: ^Parser, prefix := false,allocator := context.allocator) -> 
 		op = .GreaterThan
 	case .Exclaim:
 		op = .BW_Not
+	case .Caret:
+		op = .Deref
+	case .EqEq:
+		op = .Eq
 	case:
 		error = prs_error(prs, "Expected operator but got %v (%v)", token.type, token.value)
 	}

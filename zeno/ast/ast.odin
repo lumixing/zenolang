@@ -97,6 +97,7 @@ Assign :: struct {
 }
 
 Expr :: union #no_nil {
+	^Expr,
 	Atom,
 	^Un,
 	^Bin,
@@ -129,6 +130,7 @@ Un :: struct {
 Unop :: enum {
 	BW_Not,
 	Neg,
+	Deref,
 }
 
 Bin :: struct {
@@ -143,14 +145,15 @@ Binop :: enum {
 	Mult,
 	LessThan,
 	GreaterThan,
+	Eq,
 }
 
 prefix_bp :: proc(op: Op) -> u8 {
 	#partial switch it in op {
 	case Unop:
 		switch it {
-		case .Neg, .BW_Not:
-			return 7
+		case .Neg, .BW_Not, .Deref:
+			return 9
 		}
 	}
 
@@ -161,12 +164,14 @@ infix_bp :: proc(op: Op) -> (u8, u8) {
 	#partial switch op in op {
 	case Binop:
 		switch op {
-		case .LessThan, .GreaterThan:
+		case .Eq:
 			return 1, 2
-		case .Add, .Sub:
+		case .LessThan, .GreaterThan:
 			return 3, 4
-		case .Mult:
+		case .Add, .Sub:
 			return 5, 6
+		case .Mult:
+			return 7, 8
 		}
 	}
 

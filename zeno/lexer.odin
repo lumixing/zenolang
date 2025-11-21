@@ -30,7 +30,6 @@ lexer_scan :: proc(lexer: ^Lexer, input: []u8, allocator := context.allocator) -
 		case ',':  lexer_add_token(lexer, .Comma)
 		case '#':  lexer_add_token(lexer, .Hash)
 		case '^':  lexer_add_token(lexer, .Caret)
-		case '=':  lexer_add_token(lexer, .Eq)
 		case '!':  lexer_add_token(lexer, .Exclaim)
 		case '+':  lexer_add_token(lexer, .Plus)
 		case '*':  lexer_add_token(lexer, .Asterisk)
@@ -43,6 +42,13 @@ lexer_scan :: proc(lexer: ^Lexer, input: []u8, allocator := context.allocator) -
 				lexer_add_token(lexer, .DotDot)
 			} else {
 				lexer_add_token(lexer, .Dot)
+			}
+		case '=':
+			if (lexer_peek(lexer) or_return) == '=' {
+				lexer_eat(lexer) or_return
+				lexer_add_token(lexer, .EqEq)
+			} else {
+				lexer_add_token(lexer, .Eq)
 			}
 		case '"':
 			for {

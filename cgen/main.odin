@@ -10,7 +10,7 @@ State :: struct {
 }
 
 unreach :: proc(loc := #caller_location) -> ! {
-	panic("!!! unreachable !!!", loc = loc)
+	panic("!!! unimplemented !!!", loc = loc)
 }
 
 main :: proc() {

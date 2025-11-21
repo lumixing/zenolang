@@ -1,5 +1,6 @@
 package cgen
 
+import "core:fmt"
 import "core:c/libc"
 import "core:strings"
 import "core:os"
@@ -144,9 +145,11 @@ args_to_c :: proc(state: ^cgen.State, args: []ast.Expr) -> []cgen.Expr {
 expr_to_c :: proc(state: ^cgen.State, expr: ast.Expr) -> cgen.Expr {
 	atoms: [dynamic]cgen.ExprAtom
 
-	switch expr in expr {
+	switch it in expr {
+	case ^ast.Expr:
+		append(&atoms, expr_to_c(state, it^))  // cheecky fucking deref
 	case ast.Atom:
-		switch atom in expr {
+		switch atom in it {
 		case ast.Ident:
 			append(&atoms, cgen.Ident(atom))
 		case ast.Literal:
@@ -165,37 +168,44 @@ expr_to_c :: proc(state: ^cgen.State, expr: ast.Expr) -> cgen.Expr {
 			})
 		}
 	case ^ast.Un:
-		switch expr.op {
+		switch it.op {
 		case .Neg:
 			append(&atoms, cgen.Unop.Neg)
-			append(&atoms, expr_to_c(state, expr.expr))
+			append(&atoms, expr_to_c(state, it.expr))
 		case .BW_Not:
 			append(&atoms, cgen.Unop.BW_Not)
-			append(&atoms, expr_to_c(state, expr.expr))
+			append(&atoms, expr_to_c(state, it.expr))
+		case .Deref:
+			append(&atoms, cgen.Unop.Deref)
+			append(&atoms, expr_to_c(state, it.expr))
 		}
 	case ^ast.Bin:
 		// we can very easily DRY this
-		switch expr.op {
+		switch it.op {
+		case .Eq:
+			append(&atoms, expr_to_c(state, it.lhs))
+			append(&atoms, cgen.Binop.Eq)
+			append(&atoms, expr_to_c(state, it.rhs))
 		case .Add:
-			append(&atoms, expr_to_c(state, expr.lhs))
+			append(&atoms, expr_to_c(state, it.lhs))
 			append(&atoms, cgen.Binop.Add)
-			append(&atoms, expr_to_c(state, expr.rhs))
+			append(&atoms, expr_to_c(state, it.rhs))
 		case .Sub:
-			append(&atoms, expr_to_c(state, expr.lhs))
+			append(&atoms, expr_to_c(state, it.lhs))
 			append(&atoms, cgen.Binop.Sub)
-			append(&atoms, expr_to_c(state, expr.rhs))
+			append(&atoms, expr_to_c(state, it.rhs))
 		case .Mult:
-			append(&atoms, expr_to_c(state, expr.lhs))
+			append(&atoms, expr_to_c(state, it.lhs))
 			append(&atoms, cgen.Binop.Mult)
-			append(&atoms, expr_to_c(state, expr.rhs))
+			append(&atoms, expr_to_c(state, it.rhs))
 		case .LessThan:
-			append(&atoms, expr_to_c(state, expr.lhs))
+			append(&atoms, expr_to_c(state, it.lhs))
 			append(&atoms, cgen.Binop.LessThan)
-			append(&atoms, expr_to_c(state, expr.rhs))
+			append(&atoms, expr_to_c(state, it.rhs))
 		case .GreaterThan:
-			append(&atoms, expr_to_c(state, expr.lhs))
+			append(&atoms, expr_to_c(state, it.lhs))
 			append(&atoms, cgen.Binop.GreaterThan)
-			append(&atoms, expr_to_c(state, expr.rhs))
+			append(&atoms, expr_to_c(state, it.rhs))
 		}
 	}
 
@@ -221,5 +231,5 @@ type_to_c :: proc(info: ^check.Info, state: ^cgen.State, type: ast.Type) -> cgen
 	case ast.UserType: unimplemented()
 	}
 
-	unreachable()
+	unimplemented()
 }
