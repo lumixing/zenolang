@@ -105,6 +105,7 @@ Expr :: union #no_nil {
 Atom :: union #no_nil {
 	Ident,
 	Literal,
+	FuncCall,
 }
 
 Ident :: distinct string
@@ -112,6 +113,7 @@ Ident :: distinct string
 Literal :: union #no_nil {
 	string,
 	int,
+	bool,
 }
 
 Op :: union #no_nil {
@@ -135,15 +137,19 @@ Bin :: struct {
 
 Binop :: enum {
 	Add,
+	Sub,
 	Mult,
+	LessThan,
+	GreaterThan,
 }
 
 infix_bp :: proc(op: Op) -> (u8, u8) {
 	#partial switch op in op {
 	case Binop:
 		switch op {
-		case .Add:  return 1, 2
-		case .Mult: return 3, 4
+		case .LessThan, .GreaterThan: return 1, 2
+		case .Add, .Sub:  return 3, 4
+		case .Mult: return 5, 6
 		}
 	}
 

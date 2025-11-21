@@ -1,4 +1,7 @@
-main() void {
-	ds i32 = 59
-	return 1*2+ds
+#foreign("stdio.h") printf(fmt str) i32
+
+main() i32 {
+	n i32 = printf("hello world\n")
+	printf("printed %d\n", n)
+	return 0
 }

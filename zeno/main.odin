@@ -4,9 +4,8 @@ import "core:fmt"
 import check "checker"
 import "diagn"
 import cgen "gen/c"
-import irisgen "gen/iris"
 
-FILE :: "hello.zn"
+FILE :: "raylib.zn"
 
 main :: proc() {
 	file := #load("../" + FILE)

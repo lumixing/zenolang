@@ -379,11 +379,20 @@ prs_atom :: proc(prs: ^Parser, allocator := context.allocator) -> (atom: ast.Ato
 	token := prs_eat(prs) or_return
 	#partial switch token.type {
 	case .Ident:
-		atom = ast.Ident(token.value.(string))
+		if (prs_peek(prs) or_return).type == .LParen {
+			prs.span.hi -= 1
+			atom = prs_func_call(prs) or_return
+		} else {
+			atom = ast.Ident(token.value.(string))
+		}
 	case .String:
 		atom = ast.Literal(token.value.(string))
 	case .Integer:
 		atom = ast.Literal(token.value.(int))
+	case .KW_true:
+		atom = ast.Literal(true)
+	case .KW_false:
+		atom = ast.Literal(false)
 	case:
 		error = prs_error(prs, "Expected atom but got %v (%v)", token.type, token.value)
 	}
@@ -399,8 +408,14 @@ prs_op :: proc(prs: ^Parser, allocator := context.allocator) -> (op: ast.Op, con
 	#partial switch token.type {
 	case .Plus:
 		op = .Add
+	case .Hyphen:
+		op = .Sub
 	case .Asterisk:
 		op = .Mult
+	case .LessThan:
+		op = .LessThan
+	case .GreaterThan:
+		op = .GreaterThan
 	case:
 		error = prs_error(prs, "Expected operator but got %v (%v)", token.type, token.value)
 	}

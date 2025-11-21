@@ -155,7 +155,14 @@ expr_to_c :: proc(state: ^cgen.State, expr: ast.Expr) -> cgen.Expr {
 				append(&atoms, cgen.Literal(lit))
 			case int:
 				append(&atoms, cgen.Literal(lit))
+			case bool:
+				append(&atoms, cgen.Literal(lit))
 			}
+		case ast.FuncCall:
+			append(&atoms, cgen.FuncCall {
+				name = atom.name,
+				args = args_to_c(state, atom.args),
+			})
 		}
 	case ^ast.Un: unimplemented()
 	case ^ast.Bin:
@@ -164,9 +171,21 @@ expr_to_c :: proc(state: ^cgen.State, expr: ast.Expr) -> cgen.Expr {
 			append(&atoms, expr_to_c(state, expr.lhs))
 			append(&atoms, cgen.Binop.Add)
 			append(&atoms, expr_to_c(state, expr.rhs))
+		case .Sub:
+			append(&atoms, expr_to_c(state, expr.lhs))
+			append(&atoms, cgen.Binop.Sub)
+			append(&atoms, expr_to_c(state, expr.rhs))
 		case .Mult:
 			append(&atoms, expr_to_c(state, expr.lhs))
 			append(&atoms, cgen.Binop.Mult)
+			append(&atoms, expr_to_c(state, expr.rhs))
+		case .LessThan:
+			append(&atoms, expr_to_c(state, expr.lhs))
+			append(&atoms, cgen.Binop.LessThan)
+			append(&atoms, expr_to_c(state, expr.rhs))
+		case .GreaterThan:
+			append(&atoms, expr_to_c(state, expr.lhs))
+			append(&atoms, cgen.Binop.GreaterThan)
 			append(&atoms, expr_to_c(state, expr.rhs))
 		}
 	}

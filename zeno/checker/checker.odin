@@ -95,9 +95,9 @@ check_block :: proc(info: ^Info, block: ast.Block) -> (error: Maybe(diagn.Error)
 			if it, ok := it.value.?; ok {
 				check_expr(info, it) or_return
 			}
-		case ast.While: unimplemented()
-		case ast.If: unimplemented()
-		case ast.Assign: unimplemented()
+		case ast.While:
+		case ast.If:
+		case ast.Assign:
 		}
 	}
 
@@ -108,13 +108,16 @@ check_block :: proc(info: ^Info, block: ast.Block) -> (error: Maybe(diagn.Error)
 check_expr :: proc(info: ^Info, expr: ast.Expr) -> (error: Maybe(diagn.Error)) {
 	switch it in expr {
 	case ast.Atom:
-		#partial switch it in it {
+		switch it in it {
+		case ast.Literal:
 		case ast.Ident:
 			var := get_var(info, info.current_scope, string(it))
 			if var == nil {
 				error = check_error("Variable %q is not defined", it)
 				return
 			}
+		case ast.FuncCall:
+			check_func_call(info, it) or_return
 		}
 	case ^ast.Un: unimplemented()
 	case ^ast.Bin:
@@ -271,7 +274,11 @@ expr_type :: proc(info: ^Info, expr: ast.Expr) -> ast.Type {
 			switch it in it {
 			case string: return .string
 			case int:    return .i32,;;;  // valid btw?!
+			case bool:   return .bool
 			}
+		case ast.FuncCall:
+			assert(it.name in info.funcs)
+			return info.funcs[it.name].sign.return_type
 		}
 	case ^ast.Un: unimplemented()
 	case ^ast.Bin:

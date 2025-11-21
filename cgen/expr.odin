@@ -96,6 +96,7 @@ unop_str :: proc(unop: Unop) -> string {
 
 Binop :: enum {
 	Add,
+	Sub,
 	Mult,
 	Div,
 
@@ -110,6 +111,7 @@ Binop :: enum {
 binop_str :: proc(binop: Binop) -> string {
 	switch binop {
 	case .Add:       return "+"
+	case .Sub:       return "-"
 	case .Mult:      return "*"
 	case .Div:       return "/"
 	case .BW_And:    return "&"

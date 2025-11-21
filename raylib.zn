@@ -14,29 +14,29 @@
 #foreign("!raylib.h") GetMouseY() u32
 
 main() void {
-	i u32 = 0
+	i i32 = 0
 	for i < 10 {
 		printf("fib(%d) = %d\n", i, fib(i))
 		i = i + 1
 	}
 
-	_WARNING u32 = 4
-	_BLACK u32 = 255
-	_MAGENTA u32 = 4278255615
-	_LEFT u32 = 0
+	_WARNING i32 = 4
+	_BLACK i32 = 255
+	_MAGENTA i32 = 4278255615
+	_LEFT i32 = 0
 
 	SetTraceLogLevel(_WARNING)
 	InitWindow(800, 600, "raylib in zeno!")
 	SetTargetFPS(60)
 
-	y0 string = 300
+	y0 i32 = 300
 
 	bx i32 = 700
 	by i32 = 200
-	bvx i32 = -5
-	bvy i32 = -5
+	bvx i32 = 0-5
+	bvy i32 = 0-5
 
-	for !WindowShouldClose() {
+	for true {
 		y0 = GetMouseY()
 
 		if bx < 32 {
@@ -51,12 +51,12 @@ main() void {
 
 		if bx > 800-32 {
 			bx = 800-32
-			bvx = -5
+			bvx = 0-5
 		}
 
 		if by > 600 {
 			by = 600
-			bvy = -5
+			bvy = 0-5
 		}
 
 		bx = bx + bvx
