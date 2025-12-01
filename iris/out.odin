@@ -71,7 +71,7 @@ _out_instr :: proc(it: Instr) {
 }
 
 _out_call :: proc(it: Call) {
-	write("call $%s(")
+	write("call $%s(", it.name)
 	for it in it.args {
 		write("%s ", it.type)
 		defer write(", ")

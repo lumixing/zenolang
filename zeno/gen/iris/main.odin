@@ -9,6 +9,7 @@ afmt :: fmt.aprintf
 
 tstmts: [dynamic]iris.TopStmt
 glob_idx := 0
+iv_idx := 0
 
 gen :: proc(top_stmts: []ast.TopStmt, info: ^check.Info) -> []iris.TopStmt {
 	for it in top_stmts {
@@ -16,7 +17,7 @@ gen :: proc(top_stmts: []ast.TopStmt, info: ^check.Info) -> []iris.TopStmt {
 		case ast.FuncDef:
 			stmts: [dynamic]iris.Stmt
 			for it in it.body {
-				append(&stmts, gen_stmt(info, it))
+				gen_stmt(info, &stmts, it)
 			}
 
 			append(&tstmts, iris.Func{
@@ -57,41 +58,102 @@ data :: proc(name: string, args: ..iris.DataValue) -> (d: iris.Data) {
 	return
 }
 
-gen_stmt :: proc(info: ^check.Info, stmt: ast.Stmt) -> iris.Stmt {
+local_def :: proc(name: string, type: iris.Type, value: iris.LocalDefValue) -> iris.LocalDef {
+	return {
+		name = name,
+		type = type,
+		value = value,
+	}
+}
+
+gen_stmt :: proc(info: ^check.Info, stmts: ^[dynamic]iris.Stmt, stmt: ast.Stmt) {
 	#partial switch it in stmt {
 	case ast.VarDef:
-		type := from_type(info, it.type)
-		name := it.name
-		istmt := iris.LocalDef {
-			type = type,
-			name = name,
+		iv := gen_expr(info, stmts, it.value)
+		append(stmts, iris.LocalDef {
+			name = it.name,
+			type = from_type(info, it.type),
+			value = instr(.copy, {.i32, iris.Local(iv)}),
+		})
+	case ast.FuncCall:
+		args: [dynamic]iris.Arg
+		for it in it.args {
+			iv := gen_expr(info, stmts, it)
+			append(&args, iris.Arg{.i32, iv})
 		}
-		#partial switch it in it.value {
-		case ast.Atom:
-			#partial switch it in it {
-			case ast.Ident:
-				istmt.value = instr(.copy, {type, iris.Local(name)})
-			case ast.Literal:
-				switch it in it {
-				case string:
-					strlit_name := afmt(".%s.strlit.%d", name, glob_idx)
-					append(&tstmts, data(strlit_name, {.i8, it}, {.i8, 0}))
-					glob_idx += 1
-					str_name := afmt(".%s.str.%d", name, glob_idx)
-					append(&tstmts, data(str_name, {.i32, len(it)}, {.ptr, iris.Global(strlit_name)}))
-					glob_idx += 1
-					istmt.value = instr(.copy, {.ptr, iris.Global(str_name)})
-				case int:
-					istmt.value = instr(.copy, {.i32, iris.Literal(it)})
-				case bool:
-					istmt.value = instr(.copy, {.i32, iris.Literal(int(it))})
-				}
+		append(stmts, iris.Call {
+			name = it.name,
+			args = args[:],
+		})
+	case: fmt.println("!! unimpl", it)
+	}
+}
+
+gen_expr :: proc(info: ^check.Info, stmts: ^[dynamic]iris.Stmt, expr: ast.Expr) -> iris.Local {
+	switch it in expr {
+	case ^ast.Expr: unimplemented()
+	case ast.Atom:
+		switch it in it {
+		case ast.Ident:
+			// todo: find correct type instead of i32
+			iv := new_iv()
+			append(stmts, local_def(iv, .i32, instr(.copy, {.i32, iris.Local(it)})))
+			return iris.Local(iv)
+		case ast.Literal:
+			switch it in it {
+			case int:
+				iv := new_iv()
+				append(stmts, local_def(iv, .i32, instr(.copy, {.i32, iris.Literal(it)})))
+				return iris.Local(iv)
+			case bool: unimplemented()
+			case string:
+				iv := new_iv()
+				append(&tstmts, data("str", {.i8, it}, {.i8, 0}))
+				append(stmts, local_def(iv, .i32, instr(.copy, {.i32, iris.Global("str")})))
+				return iris.Local(iv)
 			}
+		case ast.FuncCall: unimplemented()
 		}
-		return istmt
+	case ^ast.Un: unimplemented()
+	case ^ast.Bin:
+		#partial switch it.op {
+		case .Add:
+			iv1 := gen_expr(info, stmts, it.lhs)
+			iv2 := gen_expr(info, stmts, it.rhs)
+			append(stmts, instr(.add, {.i32, iris.Local(iv1)}, {.i32, iris.Local(iv2)}))
+			return iris.Local(iv1)
+		case .Mult:
+			iv1 := gen_expr(info, stmts, it.lhs)
+			iv2 := gen_expr(info, stmts, it.rhs)
+			append(stmts, instr(.mul, {.i32, iris.Local(iv1)}, {.i32, iris.Local(iv2)}))
+			return iris.Local(iv1)
+		case: unimplemented()
+		}
 	}
 
-	return iris.Instr{.ret, {}}
+	unimplemented()
+}
+
+new_iv :: proc() -> string {
+	defer iv_idx += 1
+	return afmt(".iv.%d", iv_idx)
+}
+
+expr_arg :: proc(expr: ast.Expr) -> iris.Arg {
+	#partial switch it in expr {
+	case ast.Atom:
+		#partial switch it in it {
+		case ast.Literal:
+			#partial switch it in it {
+			case int: return {.i32, iris.Literal(it)}
+			}
+		}
+	case ^ast.Bin:
+		fmt.println(it)
+		unimplemented("oops!")
+	}
+
+	unimplemented()
 }
 
 from_params :: proc(info: ^check.Info, params: []ast.Param) -> []iris.Param {

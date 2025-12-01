@@ -37,13 +37,15 @@ Stmt :: union #no_nil {
 	LocalDef,
 }
 
+LocalDefValue :: union {
+		Instr,
+		Call,
+	}
+
 LocalDef :: struct {
 	type: Type,
 	name: string,
-	value: union {
-		Instr,
-		Call,
-	},
+	value: LocalDefValue,
 }
 
 Arg :: Typed(union {
@@ -65,6 +67,8 @@ Instr :: struct {
 Mnemonic :: enum {
 	ret,
 	add,
+	sub,
+	mul,
 	copy,
 }
 

@@ -351,7 +351,7 @@ prs_expr :: proc(prs: ^Parser, min_bp: u8 = 0, allocator := context.allocator) -
 		ex, _ := prs_expr(prs, 0) or_return
 		_ = prs_expect(prs, .RParen) or_return
 
-		expr = new_clone(ex)
+		expr = ex
 		return
 	} else {
 		atom, atom_consumed, atom_err := prs_atom(prs)

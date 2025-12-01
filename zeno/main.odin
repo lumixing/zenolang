@@ -33,7 +33,7 @@ main :: proc() {
 		fmt.printfln(FILE + ":%d:%d: %s\n(%v)", line, col, err.message, err.loc)
 		return
 	}
-	//fmt.printfln("%#v", prs.top_stmts[:])
+	fmt.printfln("%#v", prs.top_stmts[:])
 
 	fmt.println("checking")
 	err3 := check.check(&info, prs.top_stmts[:])
