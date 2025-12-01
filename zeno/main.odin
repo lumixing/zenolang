@@ -4,6 +4,8 @@ import "core:fmt"
 import check "checker"
 import "diagn"
 import cgen "gen/c"
+import irisgen "gen/iris"
+import "../iris"
 
 FILE :: "hello.zn"
 
@@ -41,8 +43,10 @@ main :: proc() {
 	}
 
 	fmt.println("generating")
-	cgen.gen(prs.top_stmts[:], &info)
-	//irisgen.gen(prs.top_stmts[:], &info)
+	//cgen.gen(prs.top_stmts[:], &info)
+	tstmts := irisgen.gen(prs.top_stmts[:], &info)
+	//fmt.printfln("%#v", tstmts)
+	fmt.println(iris.out(tstmts))
 
-	fmt.println("done")
+	//fmt.println("done")
 }

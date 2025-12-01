@@ -11,12 +11,15 @@ Extern :: struct {
 	variadic: bool,
 }
 
-Data :: struct {
-	name: string,
-	data: []Typed(union {
+DataValue :: Typed(union {
 		string,
 		int,
+		Global,
 	})
+
+Data :: struct {
+	name: string,
+	data: []DataValue,
 }
 
 Param :: Typed(string)
@@ -38,33 +41,31 @@ LocalDef :: struct {
 	type: Type,
 	name: string,
 	value: union {
-		Literal,
 		Instr,
 		Call,
 	},
 }
 
-Call :: struct {
-	name: string,
-	args: []Typed(union {
+Arg :: Typed(union {
 		Literal,
 		Local,
 		Global,
-	}),
+	})
+
+Call :: struct {
+	name: string,
+	args: []Arg,
 }
 
 Instr :: struct {
 	mnem: Mnemonic,
-	args: []Typed(union {
-		Literal,
-		Local,
-		Global,
-	}),
+	args: []Arg,
 }
 
 Mnemonic :: enum {
 	ret,
 	add,
+	copy,
 }
 
 Literal :: union #no_nil {
