@@ -3,4 +3,5 @@
 main() i32 {
 	z i32 = 2*(34+35)
 	printf("%d\n", z)
+	return 0
 }

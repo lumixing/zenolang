@@ -47,6 +47,7 @@ main :: proc() {
 	tstmts := irisgen.gen(prs.top_stmts[:], &info)
 	//fmt.printfln("%#v", tstmts)
 	fmt.println(iris.out(tstmts))
+	iris.gen(tstmts)
 
 	//fmt.println("done")
 }

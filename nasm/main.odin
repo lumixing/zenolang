@@ -92,6 +92,10 @@ mov_base_reg_dis_int :: proc(reg: Register, dis: int, value: int) {
 	append(&lines, ff("\tmov [%s%+d], %d", reg_str[reg.type][reg.kind], dis, value))
 }
 
+mov_reg_base_reg_dis :: proc(reg1, reg2: Register, dis: int) {
+	append(&lines, ff("\tmov %s, [%s%+d]", reg_str[reg1.type][reg1.kind], reg_str[reg2.type][reg2.kind], dis))
+}
+
 sub_reg_int :: proc(reg: Register, value: int) {
 	append(&lines, ff("\tsub %s, %d", reg_str[reg.type][reg.kind], value))
 }

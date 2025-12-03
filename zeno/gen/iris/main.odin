@@ -68,6 +68,12 @@ local_def :: proc(name: string, type: iris.Type, value: iris.LocalDefValue) -> i
 
 gen_stmt :: proc(info: ^check.Info, stmts: ^[dynamic]iris.Stmt, stmt: ast.Stmt) {
 	#partial switch it in stmt {
+	case ast.Return:
+		if it, ok := it.value.?; ok {
+			append(stmts, instr(.ret, {.i32, gen_expr(info, stmts, it)}))
+		} else {
+			append(stmts, instr(.ret))
+		}
 	case ast.VarDef:
 		iv := gen_expr(info, stmts, it.value)
 		append(stmts, iris.LocalDef {
