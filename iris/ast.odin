@@ -1,99 +1,92 @@
 package iris
 
-TopStmt :: union #no_nil {
-	Extern,
-	Data,
-	Func,
+Typed :: struct($T: typeid) {
+	type:  Type,
+	value: T,
 }
 
-Extern :: struct {
-	name: string,
-	variadic: bool,
+Type :: enum {
+	void, ptr,
+	i8, i16, i32, i64,
+	u8, u16, u32, u64,
 }
 
-DataValue :: Typed(union {
-		string,
-		int,
-		Global,
-	})
+Program :: struct {
+	extern: map[string]bool,
+	data:   map[string]Data,
+	func:   map[string]Func,
+}
 
 Data :: struct {
 	name: string,
 	data: []DataValue,
 }
 
-Param :: Typed(string)
+DataValue :: Typed(union #no_nil {
+	Literal,
+	string,
+	//Global,
+})
 
 Func :: struct {
-	type: Type,
-	name: string,
+	type:   Type,
+	name:   string,
 	params: []Param,
-	body: []Stmt,
+	body:   []Stmt,
 }
+
+Param :: Typed(string)
 
 Stmt :: union #no_nil {
-	Instr,
-	Call,
 	LocalDef,
+	Instr,
+	Label,
 }
-
-LocalDefValue :: union {
-		Instr,
-		Call,
-	}
 
 LocalDef :: struct {
-	type: Type,
-	name: string,
-	value: LocalDefValue,
+	type:  Type,
+	name:  string,
+	value: Instr,
 }
 
-Arg :: Typed(union {
-		Literal,
-		Local,
-		Global,
-	})
-
-Call :: struct {
-	name: string,
+LocalDefInstr :: struct {
+	mnem: LocalDefInstrMnem,
 	args: []Arg,
+}
+
+LocalDefInstrMnem :: enum {
+	copy,
 }
 
 Instr :: struct {
-	mnem: Mnemonic,
+	mnem: InstrMnem,
 	args: []Arg,
 }
 
-Mnemonic :: enum {
+InstrMnem :: enum {
 	ret,
 	add,
 	sub,
 	mul,
-	copy,
 }
+
+Arg :: union #no_nil {
+	Label,
+	ArgValue,
+}
+
+ArgValue :: Typed(union #no_nil {
+	Literal,
+	Local,
+	Global,
+})
+
+Label  :: distinct string
+Local  :: distinct string
+Global :: distinct string
 
 Literal :: union #no_nil {
 	int,
 	f32,
 }
 
-Local :: distinct string
-Global :: distinct string
-
-Typed :: struct($T: typeid) {
-	type: Type,
-	value: T,
-}
-
-Type :: enum {
-	void,
-	ptr,
-	i8,
-	i16,
-	i32,
-	i64,
-	u8,
-	u16,
-	u32,
-	u64,
-}
