@@ -16,6 +16,9 @@ Options :: struct {
 	print_tokens: bool,
 	print_ast:    bool,
 
+	print_info:      bool,
+	print_ast_after: bool,
+
 	output_iris:    bool,
 	print_iris:     bool,
 	print_iris_ast: bool,
@@ -73,22 +76,30 @@ main :: proc() {
 		fmt.printfln("%#v\n\n", prs.top_stmts[:])
 	}
 
-	info, err3 := check.check(prs.top_stmts[:])
+	tstmts := prs.top_stmts[:]
+	info: check.Info
+	err3 := check.check(&info, &tstmts)
 	if err, ok := err3.?; ok {
 		fmt.println(err.message)
 		return
 	}
 
 	print_timing(TIMING_CHECK, &last_time, opt.print_timings)
-
-	tstmts := irisgen.gen(prs.top_stmts[:], &info)
-
-	print_timing(TIMING_IRISGEN, &last_time, opt.print_timings)
-	if opt.print_iris_ast {
+	if opt.print_info {
+		fmt.printfln("%#v", info)
+	}
+	if opt.print_ast_after {
 		fmt.printfln("%#v\n\n", tstmts)
 	}
 
-	iris_src := iris.out(tstmts)
+	iris_tstmts := irisgen.gen(tstmts, &info)
+
+	print_timing(TIMING_IRISGEN, &last_time, opt.print_timings)
+	if opt.print_iris_ast {
+		fmt.printfln("%#v\n\n", iris_tstmts)
+	}
+
+	iris_src := iris.out(iris_tstmts)
 	if opt.print_iris {
 		fmt.println(iris_src, "\n")
 	}

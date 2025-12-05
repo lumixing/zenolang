@@ -36,6 +36,14 @@ lexer_scan :: proc(lexer: ^Lexer, input: []u8, allocator := context.allocator) -
 		case '-':  lexer_add_token(lexer, .Hyphen)
 		case '<':  lexer_add_token(lexer, .LessThan)
 		case '>':  lexer_add_token(lexer, .GreaterThan)
+		case '/':
+			if (lexer_peek(lexer) or_return) == '/' {
+				for {
+					if (lexer_eat(lexer) or_return) == '\n' do break
+				}
+			} else {
+				unimplemented("/")
+			}
 		case '.':
 			if (lexer_peek(lexer) or_return) == '.' {
 				lexer_eat(lexer) or_return

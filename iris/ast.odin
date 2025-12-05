@@ -70,6 +70,10 @@ InstrMnem :: enum {
 	add,
 	sub,
 	mul,
+
+	clt,
+	jnz,
+	jmp,
 }
 
 Arg :: union #no_nil {

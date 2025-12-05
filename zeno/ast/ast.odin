@@ -54,7 +54,17 @@ FuncDef :: struct {
 	body: Block,
 }
 
-Block :: []Stmt
+Scope :: struct {
+	parent_scope: ^Scope,
+	funcs: map[string]FuncSign,
+	vars:  map[string]VarDef,
+}
+
+Block :: struct {
+	stmts: []Stmt,
+
+	scope: Maybe(Scope),
+}
 
 // @todo: add #no_nil
 Stmt :: union {

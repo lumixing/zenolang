@@ -15,10 +15,10 @@ gen :: proc(top_stmts: []ast.TopStmt, info: ^check.Info) -> iris.Program {
 	for it in top_stmts {
 		#partial switch it in it {
 		case ast.FuncDef:
-			scope := info.root_scope.funcs[it.sign.name].scope.?
 			stmts: [dynamic]iris.Stmt
-			for it in it.body {
-				gen_stmt(&stmts, it, scope)
+			//fmt.printfln("%#v", it.body.scope)
+			for stmt in it.body.stmts {
+				gen_stmt(&stmts, stmt, it.body.scope.?)
 			}
 
 			program.func[it.sign.name] = {
@@ -68,8 +68,18 @@ local_def :: proc(name: string, type: iris.Type, value: iris.Instr) -> iris.Loca
 	}
 }
 
-gen_stmt :: proc(stmts: ^[dynamic]iris.Stmt, stmt: ast.Stmt, scope: check.Scope) {
+gen_stmt :: proc(stmts: ^[dynamic]iris.Stmt, stmt: ast.Stmt, scope: ast.Scope) {
 	#partial switch stmt in stmt {
+	case ast.While:
+		append(stmts, iris.Label("loop"))
+		cond := gen_expr(stmts, stmt.cond, scope)
+		append(stmts, instr(.jnz, cond, iris.Label("body"), iris.Label("break")))
+		append(stmts, iris.Label("body"))
+		for istmt in stmt.body.stmts {
+			gen_stmt(stmts, istmt, stmt.body.scope.?)
+		}
+		append(stmts, instr(.jmp, iris.Label("loop")))
+		append(stmts, iris.Label("break"))
 	case ast.VarDef:
 		value := instr(.copy, gen_expr(stmts, stmt.value, scope))
 		append(stmts, local_def(stmt.name, from_type(stmt.type), value))
@@ -82,6 +92,9 @@ gen_stmt :: proc(stmts: ^[dynamic]iris.Stmt, stmt: ast.Stmt, scope: check.Scope)
 	case ast.FuncCall:
 		func_name := iris.ArgValue{.ptr, iris.Global(stmt.name)}
 		append(stmts, call(stmt.name, from_args(stmts, stmt.args, scope)))
+	case:
+		fmt.println("unimpl", stmt)
+		unimplemented()
 	}
 }
 
@@ -100,16 +113,14 @@ data :: proc(name: string, args: ..iris.DataValue) -> (d: iris.Data) {
 	return
 }
 
-gen_expr :: proc(stmts: ^[dynamic]iris.Stmt, expr: ast.Expr, scope: check.Scope) -> iris.ArgValue {
+gen_expr :: proc(stmts: ^[dynamic]iris.Stmt, expr: ast.Expr, scope: ast.Scope) -> iris.ArgValue {
 	type := from_type(check.expr_type(expr, scope))
 
 	#partial switch expr in expr {
 	case ast.Atom:
-		#partial switch atom in expr {
-		case ast.Ident:
-			return {type, iris.Local(atom)}
+		switch atom in expr {
 		case ast.Literal:
-			#partial switch lit in atom {
+			switch lit in atom {
 			case int:
 				return {type, iris.Literal(lit)}
 			case bool:
@@ -119,6 +130,13 @@ gen_expr :: proc(stmts: ^[dynamic]iris.Stmt, expr: ast.Expr, scope: check.Scope)
 				program.data[iv] = data(iv, {.i8, lit}, {.i8, iris.Literal(int(0))})
 				return {type, iris.Global(iv)}
 			}
+		case ast.Ident:
+			return {type, iris.Local(atom)}
+		case ast.FuncCall:
+			func_name := iris.ArgValue{.ptr, iris.Global(atom.name)}
+			iv := new_iv()
+			append(stmts, local_def(iv, type, call(atom.name, from_args(stmts, atom.args, scope))))
+			return {type, iris.Local(iv)}
 		}
 	case ^ast.Bin:
 		#partial switch expr.op {
@@ -134,10 +152,22 @@ gen_expr :: proc(stmts: ^[dynamic]iris.Stmt, expr: ast.Expr, scope: check.Scope)
 			iv := new_iv()
 			append(stmts, local_def(iv, type, instr(.mul, lhs, rhs)))
 			return {type, iris.Local(iv)}
+		case .LessThan:
+			lhs := gen_expr(stmts, expr.lhs, scope)
+			rhs := gen_expr(stmts, expr.rhs, scope)
+			iv := new_iv()
+			append(stmts, local_def(iv, type, instr(.clt, lhs, rhs)))
+			return {type, iris.Local(iv)}
+		case:
+			fmt.println("unimpl", expr.op)
+			unimplemented()
 		}
+	case:
+		fmt.println("unimpl", expr)
+		unimplemented()
 	}
 
-	return {.void, iris.Literal(int(666))}
+	unimplemented()
 }
 
 from_params :: proc(params: []ast.Param) -> []iris.Param {
@@ -153,7 +183,7 @@ from_params :: proc(params: []ast.Param) -> []iris.Param {
 	return params_arr[:]
 }
 
-from_args :: proc(stmts: ^[dynamic]iris.Stmt, args: []ast.Expr, scope: check.Scope) -> []iris.Arg {
+from_args :: proc(stmts: ^[dynamic]iris.Stmt, args: []ast.Expr, scope: ast.Scope) -> []iris.Arg {
 	args_arr: [dynamic]iris.Arg
 
 	for expr in args {
@@ -166,9 +196,10 @@ from_args :: proc(stmts: ^[dynamic]iris.Stmt, args: []ast.Expr, scope: check.Sco
 from_type :: proc(type: ast.Type) -> iris.Type {
 	switch it in type {
 	case ast.Pointer:
-		return from_type(it)
+		return .ptr
 	case ast.Variadic:
-		return from_type(it)
+		unimplemented()
+		//return from_type(it)
 	case ast.BasicType:
 		switch it {
 		case .bool: return .i8

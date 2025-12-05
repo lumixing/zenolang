@@ -13,21 +13,21 @@ main() i32 {
 
 	len i32 = strlen(input)
 	for pc < len {
-		ch u8 = ^(input+pc)
-		if ch == 43 {
-			^(buf+dp) = ^(buf+dp) + 1
-			pc = pc + 1
-		}
-
-		if ch == 45 {
-			^(buf+dp) = ^(buf+dp) - 1
-			pc = pc + 1
-		}
-
-		if ch == 46 {
-			printf("%c", ^(buf+dp))
-			pc = pc + 1
-		}
+//		ch u8 = ^(input+pc)
+//		if ch == 43 {
+//			^(buf+dp) = ^(buf+dp) + 1
+//			pc = pc + 1
+//		}
+//
+//		if ch == 45 {
+//			^(buf+dp) = ^(buf+dp) - 1
+//			pc = pc + 1
+//		}
+//
+//		if ch == 46 {
+//			printf("%c", ^(buf+dp))
+//			pc = pc + 1
+//		}
 	}
 
 	printf("\n")

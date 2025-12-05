@@ -188,7 +188,9 @@ prs_block :: proc(prs: ^Parser, allocator := context.allocator) -> (block: ast.B
 	_ = prs_expect(prs, .RBrace) or_return
 	_ = prs_expect(prs, .Newline) or_return
 
-	block = stmts[:]
+	block = {
+		stmts = stmts[:],
+	}
 	return
 }
 

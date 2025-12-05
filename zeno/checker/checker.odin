@@ -5,28 +5,14 @@ import "../ast"
 import "../diagn"
 
 Info :: struct {
-	root_scope: Scope,
-}
-
-Scope :: struct {
-	parent_scope: ^Scope,
-	funcs: map[string]Func,
-	vars:  map[string]Var,
-}
-
-Func :: struct {
-	scope: Maybe(Scope),
-	sign: ast.FuncSign,
-}
-
-Var :: struct {
-	type: ast.Type,
+	root_scope: ast.Scope,
 }
 
 @(require_results)
-check :: proc(top_stmts: []ast.TopStmt) -> (info: Info, err: Maybe(diagn.Error)) {
-	for tstmt in top_stmts {
-		switch tstmt in tstmt {
+// pass top_stmts by ptr??
+check :: proc(info: ^Info, top_stmts: ^[]ast.TopStmt) -> (err: Maybe(diagn.Error)) {
+	for &tstmt in top_stmts {
+		switch &tstmt in tstmt {
 		case ast.Directive:
 			switch dir in tstmt {
 			case ast.DirectiveForeign:
@@ -35,9 +21,7 @@ check :: proc(top_stmts: []ast.TopStmt) -> (info: Info, err: Maybe(diagn.Error))
 					return
 				}
 
-				info.root_scope.funcs[dir.func_sign.name] = {
-					sign = dir.func_sign,
-				}
+				info.root_scope.funcs[dir.func_sign.name] = dir.func_sign
 			}
 		case ast.FuncDef:
 			if tstmt.sign.name in info.root_scope.funcs {
@@ -45,12 +29,8 @@ check :: proc(top_stmts: []ast.TopStmt) -> (info: Info, err: Maybe(diagn.Error))
 				return
 			}
 
-			scope := check_block(tstmt.body, &info.root_scope) or_return
-
-			info.root_scope.funcs[tstmt.sign.name] = {
-				sign = tstmt.sign,
-				scope = scope,
-			}
+			info.root_scope.funcs[tstmt.sign.name] = tstmt.sign
+			check_block(&tstmt.body, &info.root_scope) or_return
 		}
 	}
 
@@ -58,24 +38,28 @@ check :: proc(top_stmts: []ast.TopStmt) -> (info: Info, err: Maybe(diagn.Error))
 }
 
 @(require_results)
-check_block :: proc(block: ast.Block, parent_scope: ^Scope) -> (scope: Scope, err: Maybe(diagn.Error)) {
-	for stmt in block {
-		check_stmt(stmt, &scope) or_return
+check_block :: proc(block: ^ast.Block, parent_scope: ^ast.Scope) -> (err: Maybe(diagn.Error)) {
+	scope: ast.Scope
+	scope.parent_scope = parent_scope
+
+	for &stmt in block.stmts {
+		check_stmt(&stmt, &scope) or_return
 	}
+	block.scope = scope
 
 	return
 }
 
 @(require_results)
-check_stmt :: proc(stmt: ast.Stmt, scope: ^Scope) -> (err: Maybe(diagn.Error)) {
-	#partial switch stmt in stmt {
+check_stmt :: proc(stmt: ^ast.Stmt, scope: ^ast.Scope) -> (err: Maybe(diagn.Error)) {
+	#partial switch &stmt in stmt {
+	case ast.While:
+		check_block(&stmt.body, scope) or_return
 	case ast.VarDef:
 		var := get_var(stmt.name, scope^)
 		assert(var == nil)
 
-		scope.vars[stmt.name] = {
-			type = stmt.type,
-		}
+		scope.vars[stmt.name] = stmt
 	// case: unimplemented()
 	}
 
@@ -83,7 +67,7 @@ check_stmt :: proc(stmt: ast.Stmt, scope: ^Scope) -> (err: Maybe(diagn.Error)) {
 }
 
 @(require_results)
-get_var :: proc(name: string, scope: Scope) -> Maybe(Var) {
+get_var :: proc(name: string, scope: ast.Scope) -> Maybe(ast.VarDef) {
 	if var, ok := scope.vars[name]; ok {
 		return var
 	}
@@ -94,7 +78,7 @@ get_var :: proc(name: string, scope: Scope) -> Maybe(Var) {
 }
 
 @(require_results)
-get_func :: proc(name: string, scope: Scope) -> Maybe(Func) {
+get_func :: proc(name: string, scope: ast.Scope) -> Maybe(ast.FuncSign) {
 	if func, ok := scope.funcs[name]; ok {
 		return func
 	}
@@ -105,7 +89,7 @@ get_func :: proc(name: string, scope: Scope) -> Maybe(Func) {
 }
 
 @(require_results)
-expr_type :: proc(expr: ast.Expr, scope: Scope) -> ast.Type {
+expr_type :: proc(expr: ast.Expr, scope: ast.Scope) -> ast.Type {
 	switch expr in expr {
 	case ^ast.Expr:
 		return expr_type(expr, scope)
@@ -122,9 +106,13 @@ expr_type :: proc(expr: ast.Expr, scope: Scope) -> ast.Type {
 			return var.type
 		case ast.FuncCall:
 			func := get_func(atom.name, scope).?
-			return func.sign.return_type
+			return func.return_type
 		}
 	case ^ast.Bin:
+		#partial switch expr.op {
+		case .LessThan, .GreaterThan, .Eq:
+			return .bool
+		}
 		return expr_type(expr.lhs, scope)
 	case ^ast.Un:
 		return expr_type(expr.expr, scope)
