@@ -18,7 +18,6 @@ Directive :: union {
 }
 
 DirectiveForeign :: struct {
-	filename:  string,
 	func_sign: FuncSign,
 }
 

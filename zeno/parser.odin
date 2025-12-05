@@ -60,17 +60,12 @@ prs_top_stmt :: proc(prs: ^Parser, allocator := context.allocator) -> (top_stmt:
 prs_dir_foreign :: proc(prs: ^Parser, allocator := context.allocator) -> (dir_foreign: ast.DirectiveForeign, error: Maybe(diagn.Error)) {
 	context.allocator = allocator
 
-	_ = prs_expect(prs, .LParen) or_return
-	filename := (prs_expect(prs, .String) or_return).(string)
-	_ = prs_expect(prs, .RParen) or_return
-
 	prs_forgive_newlines(prs) or_return
 
 	func_sign := prs_func_sign(prs) or_return
 	_ = prs_expect(prs, .Newline) or_return
 
 	dir_foreign = {
-		filename = filename,
 		func_sign = func_sign,
 	}
 	return

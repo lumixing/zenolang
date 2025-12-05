@@ -16,7 +16,6 @@ gen :: proc(top_stmts: []ast.TopStmt, info: ^check.Info) -> iris.Program {
 		#partial switch it in it {
 		case ast.FuncDef:
 			stmts: [dynamic]iris.Stmt
-			//fmt.printfln("%#v", it.body.scope)
 			for stmt in it.body.stmts {
 				gen_stmt(&stmts, stmt, it.body.scope.?)
 			}
