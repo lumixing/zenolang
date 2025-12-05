@@ -11,7 +11,7 @@ import "core:os"
 
 Options :: struct {
 	input_src:  os.Handle `args:"pos=0,required,file=r"`,
-	output_exe: os.Handle `args:"pos=1,file=cw"`,
+	output: os.Handle `args:"name=o,file=cw"`,
 
 	print_tokens: bool,
 	print_ast:    bool,
@@ -38,14 +38,12 @@ print_timing :: proc(fmtstr: string, timing: ^time.Time, flag := true) {
 
 main :: proc() {
 	opt: Options
-	flags.parse_or_exit(&opt, os.args)
+	flags.parse_or_exit(&opt, os.args, .Unix)
 
 	input_fi, fstat_err := os.fstat(opt.input_src)
 	assert(fstat_err == nil)
 	input_file, ok := os.read_entire_file(opt.input_src)
 	assert(ok)
-
-	info: check.Info
 
 	start_time := time.now()
 	last_time := start_time
@@ -63,7 +61,7 @@ main :: proc() {
 	}
 
 	prs: Parser
-	err2 := prs_parse(&prs, &info, lexer.tokens[:])
+	err2 := prs_parse(&prs, lexer.tokens[:])
 	if err, ok := err2.?; ok {
 		line, col := diagn.span_to_line_col(input_file, prs.tokens[err.span.hi].span)
 		fmt.printfln("%s:%d:%d: %s\n(%v)", input_fi.name, line, col, err.message, err.loc)
@@ -75,7 +73,7 @@ main :: proc() {
 		fmt.printfln("%#v\n\n", prs.top_stmts[:])
 	}
 
-	err3 := check.check(&info, prs.top_stmts[:])
+	info, err3 := check.check(prs.top_stmts[:])
 	if err, ok := err3.?; ok {
 		fmt.println(err.message)
 		return

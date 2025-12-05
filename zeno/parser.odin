@@ -4,20 +4,17 @@ import "base:runtime"
 import "core:fmt"
 import "ast"
 import "diagn"
-import check "checker"
 
 Parser :: struct {
 	tokens: []Token,
 	top_stmts: [dynamic]ast.TopStmt,
 	span: diagn.Span,
-	info: ^check.Info,
 }
 
-prs_parse :: proc(prs: ^Parser, info: ^check.Info, tokens: []Token, allocator := context.allocator) -> (error: Maybe(diagn.Error)) {
+prs_parse :: proc(prs: ^Parser, tokens: []Token, allocator := context.allocator) -> (error: Maybe(diagn.Error)) {
 	context.allocator = allocator
 
 	prs.tokens = tokens
-	prs.info = info
 
 	for !prs_end(prs) {
 		prs.span.lo = prs.span.hi
@@ -81,7 +78,7 @@ prs_dir_foreign :: proc(prs: ^Parser, allocator := context.allocator) -> (dir_fo
 
 prs_func_def :: proc(prs: ^Parser, allocator := context.allocator) -> (func_def: ast.FuncDef, error: Maybe(diagn.Error)) {
 	context.allocator = allocator
-	
+
 	func_sign := prs_func_sign(prs) or_return
 	block := prs_block(prs) or_return
 
@@ -148,9 +145,9 @@ prs_type :: proc(prs: ^Parser, allocator := context.allocator) -> (type: ast.Typ
 
 	#partial switch token.type {
 	case .DotDot:
-		type = ast.Variadic(check.type_ptr(prs.info, prs_type(prs) or_return))
+		type = ast.Variadic(new_clone(prs_type(prs) or_return))
 	case .Caret:
-		type = ast.Pointer(check.type_ptr(prs.info, prs_type(prs) or_return))
+		type = ast.Pointer(new_clone(prs_type(prs) or_return))
 	case .Ident:
 		type = ast.UserType(token.value.(string))
 	case .KW_void:   type = .void
@@ -343,7 +340,7 @@ prs_return :: proc(prs: ^Parser, allocator := context.allocator) -> (ret: ast.Re
 prs_expr :: proc(prs: ^Parser, min_bp: u8 = 0, allocator := context.allocator) -> (expr: ast.Expr, consumed: uint, error: Maybe(diagn.Error)) {
 	context.allocator = allocator
 	span_old := prs.span
-	
+
 	lhs: ast.Expr
 
 	if (prs_peek(prs) or_return).type == .LParen {
@@ -360,10 +357,10 @@ prs_expr :: proc(prs: ^Parser, min_bp: u8 = 0, allocator := context.allocator) -
 		if atom_err != nil {
 			prs.span.hi -= atom_consumed
 			op, _ := prs_op(prs, prefix = true) or_return
-	
+
 			r_bp := ast.prefix_bp(op)
 			rhs, _ := prs_expr(prs, r_bp) or_return
-	
+
 			lhs = new_clone(ast.Un {
 				op = op.(ast.Unop),
 				expr = rhs,

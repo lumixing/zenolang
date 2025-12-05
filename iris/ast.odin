@@ -64,6 +64,8 @@ Instr :: struct {
 }
 
 InstrMnem :: enum {
+	call,
+	copy,
 	ret,
 	add,
 	sub,

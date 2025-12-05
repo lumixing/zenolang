@@ -34,8 +34,8 @@ Type :: union #no_nil {
 	UserType,
 }
 
-Pointer :: distinct uint
-Variadic :: distinct uint
+Pointer  :: distinct ^Type
+Variadic :: distinct ^Type
 
 BasicType :: enum {
 	bool,

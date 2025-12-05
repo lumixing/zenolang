@@ -2,6 +2,7 @@
 
 main() i32 {
 	z i32 = 2*(34+35)
+	swag bool = true
 	printf("%d\n", z)
-	return 2*(34+35)
+	return 0
 }

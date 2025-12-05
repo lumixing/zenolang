@@ -19,3 +19,10 @@ add_one(x u32) u32 {
 	return x + 1
 }
 ```
+
+## usage
+```
+zeno -help
+zeno main.zn
+zeno main.zn -o main.exe
+```
