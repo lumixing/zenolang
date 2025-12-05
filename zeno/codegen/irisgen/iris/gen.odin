@@ -1,87 +1,107 @@
 package iris
 
 import "core:fmt"
-import "core:os"
 import "core:strings"
 import "./nasm"
 
-gen :: proc(program: Program) {
+gen :: proc(program: Program) -> string {
 	nasm.global("main")
 	nasm.newline()
 
-	for it in program.extern {
-		nasm.extern(it)
+	for extern in program.extern {
+		nasm.extern(extern)
 	}
 	nasm.newline()
 
 	nasm.section("data")
-	for _, it in program.data {
-		nasm.label(it.name)
-		for it in it.data {
-			// unimpl
+	for _, data in program.data {
+		nasm.label(data.name)
+		for data in data.data {
+			switch v in data.value {
+			case Literal:
+				switch lit in v {
+				case int:
+					nasm.db({lit})
+				case f32: unimplemented()
+				}
+			case string:
+				// todo: escape string
+				nasm.db({v})
+			}
 		}
 	}
 	nasm.newline()
 
 	nasm.section("text")
-	//for it in top_stmts {
-	//	#partial switch it in it {
-	//	case Func:
-	//		off: uint = 0
-	//		locals: map[string]uint
+	for _, func in program.func {
+		nasm.label(func.name)
 
-	//		nasm.label(it.name)
+		nasm.push_reg({.qword, .rbp})
+		nasm.mov_reg_reg({.qword, .rbp}, {.qword, .rsp})
+		nasm.newline()
 
-	//		nasm.push_reg({.qword, .rbp})
-	//		nasm.mov_reg_reg({.qword, .rbp}, {.qword, .rsp})
+		for stmt in func.body {
+			defer nasm.newline()
 
-	//		for it in it.body {
-	//			switch it in it {
-	//			case Instr:
-	//				switch it.mnem {
-	//				case .ret:
-	//					//// bad!
-	//					//if len(it.args) == 0 {
-	//					//	nasm.ret()
-	//					//} else if len(it.args) == 1 {
-	//					//	//arg := it.args[0]
-	//					//	//nasm.mov_reg_base_reg_dis({.dword, .rax}, {.qword, .rbp}, )
-	//					//	nasm.ret()
-	//					//} else {
-	//					//	panic("expected return to have 0 or 1 args")
-	//					//}
-	//				case .add:
-	//				case .sub:
-	//				case .mul:
-	//				case .copy:
-	//				}
-	//			case Call:
-	//			case LocalDef:
-	//				type := from_type(it.type)
-	//				type_size := nasm.type_size[type]
+			switch stmt in stmt {
+			case LocalDef:
+			case Instr:
+				#partial switch stmt.mnem {
+				case .ret:
+					if len(stmt.args) == 1 {
+						arg := stmt.args[0].(ArgValue)
+						switch value in arg.value {
+						case Literal:
+							switch lit in value {
+							case int:
+								nasm.mov_reg_int({from_type(arg.type), .rax}, lit)
+							case f32: unimplemented()
+							}
+						case Local: unimplemented()
+						case Global: unimplemented()
+						}
+					} else {
+						assert(len(stmt.args) == 0)
+					}
+					nasm.jmp(".postlude")
+				case .call:
+					assert(len(stmt.args) > 1)
+					func := stmt.args[0]
+					args := stmt.args[1:]
+					assert(len(args) <= 6)
 
-	//				if it.name not_in locals {
-	//					off += type_size
-	//					locals[it.name] = off
-	//					nasm.sub_reg_int({.qword, .rsp}, int(type_size))
-	//				}
+					for arg, arg_idx in args {
+						arg := arg.(ArgValue)
+						reg := nasm.Register{from_type(arg.type), arg_order[arg_idx]}
+						switch value in arg.value {
+						case Literal:
+							switch lit in value {
+							case int:
+								nasm.mov_reg_int(reg, lit)
+							case f32: unimplemented()
+							}
+						case Local: unimplemented()
+						case Global:
+							nasm.mov_reg_label(reg, string(value))
+						}
+					}
+					nasm.call(string(func.(ArgValue).value.(Global)))
+				case: unreach(stmt.mnem)
+				}
+			case Label:
+				nasm.label(string(stmt))
+			}
+		}
 
-	//				local_off := locals[it.name]
-	//				//switch it in it.value {
+		nasm.label(".postlude")
+		nasm.pop_reg({.qword, .rbp})
+		nasm.ret()
+		nasm.newline()
+	}
 
-	//				//}
-	//				nasm.mov_base_reg_dis_int({.qword, .rbp}, int(local_off), 69)
-	//			}
-	//		}
-
-	//		nasm.add_reg_int({.qword, .rsp}, int(off))
-	//		nasm.pop_reg({.qword, .rbp})
-	//		nasm.ret()
-	//	}
-	//}
-
+	nasm.note_gnu_stack()
 	lines_str := strings.join(nasm.lines[:], "\n")
-	os.write_entire_file("out.asm", transmute([]u8)lines_str)
+	return lines_str
 }
 
 from_type :: proc(type: Type) -> nasm.Type {
@@ -95,6 +115,9 @@ from_type :: proc(type: Type) -> nasm.Type {
 	case: unreach(type)
 	}
 }
+
+@(rodata)
+arg_order := [6]nasm.RegisterKind{.rdi, .rsi, .rdx, .rcx, .r8, .r9}
 
 unreach :: proc(v: $T, loc := #caller_location) -> ! {
 	fmt.panicf("unreachable: %v", v, loc = loc)

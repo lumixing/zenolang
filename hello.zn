@@ -1,6 +1,6 @@
 #foreign printf(fmtstr string, args ..any) i32
 
 main() i32 {
-	printf("hello world!\n")
+	printf("hello world %d!%c", 69, 10)
 	return 0
 }

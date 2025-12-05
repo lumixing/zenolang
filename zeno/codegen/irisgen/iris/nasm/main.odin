@@ -32,6 +32,14 @@ main :: proc() {
 	os.write_entire_file("out.asm", transmute([]u8)lines_str)
 }
 
+note_gnu_stack :: proc() {
+	append(&lines, "section .note.GNU-stack noalloc noexec nowrite progbits")
+}
+
+jmp :: proc(label: string) {
+	append(&lines, ff("\tjmp %s", label))
+}
+
 push_reg :: proc(reg: Register) {
 	append(&lines, ff("\tpush %s", reg_str[reg.type][reg.kind]))
 }

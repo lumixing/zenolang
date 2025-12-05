@@ -23,6 +23,9 @@ Options :: struct {
 	print_iris:     bool,
 	print_iris_ast: bool,
 
+	output_nasm: bool,
+	print_nasm:  bool,
+
 	print_timings: bool,
 }
 
@@ -92,14 +95,14 @@ main :: proc() {
 		fmt.printfln("%#v\n\n", tstmts)
 	}
 
-	iris_tstmts := irisgen.gen(tstmts, &info)
+	iris_program := irisgen.gen(tstmts, &info)
 
 	print_timing(TIMING_IRISGEN, &last_time, opt.print_timings)
 	if opt.print_iris_ast {
-		fmt.printfln("%#v\n\n", iris_tstmts)
+		fmt.printfln("%#v\n\n", iris_program)
 	}
 
-	iris_src := iris.out(iris_tstmts)
+	iris_src := iris.out(iris_program)
 	if opt.print_iris {
 		fmt.println(iris_src, "\n")
 	}
@@ -107,7 +110,15 @@ main :: proc() {
 		ok := os.write_entire_file(".out.iris", transmute([]u8)iris_src)
 		assert(ok)
 	}
-	//iris.gen(tstmts)
+
+	asm_out := iris.gen(iris_program)
+	if opt.print_nasm {
+		fmt.println(asm_out, "\n")
+	}
+	if opt.output_nasm {
+		ok := os.write_entire_file(".out.asm", transmute([]u8)asm_out)
+		assert(ok)
+	}
 
 	print_timing(TIMING_TOTAL, &start_time, opt.print_timings)
 }
