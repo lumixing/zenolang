@@ -5,8 +5,8 @@ import "core:fmt"
 import "core:flags"
 import check "checker"
 import "diagn"
-import irisgen "gen/iris"
-import "../iris"
+import "codegen/irisgen"
+import "codegen/irisgen/iris"
 import "core:os"
 
 Options :: struct {
