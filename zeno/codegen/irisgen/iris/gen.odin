@@ -3,7 +3,7 @@ package iris
 import "core:fmt"
 import "core:os"
 import "core:strings"
-import "../nasm"
+import "./nasm"
 
 gen :: proc(program: Program) {
 	nasm.global("main")

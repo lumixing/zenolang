@@ -1,6 +1,6 @@
 package irisgen
 
-import "../../../iris"
+import "./iris"
 import "../../ast"
 import check "../../checker"
 import "core:fmt"
