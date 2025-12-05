@@ -83,6 +83,9 @@ gen_stmt :: proc(stmts: ^[dynamic]iris.Stmt, stmt: ast.Stmt, scope: ast.Scope) {
 	case ast.VarDef:
 		value := instr(.copy, gen_expr(stmts, stmt.value, scope))
 		append(stmts, local_def(stmt.name, from_type(stmt.type), value))
+	case ast.Assign:
+		lhs := gen_expr(stmts, stmt.lhs, scope)
+		rhs := gen_expr(stmts, stmt.rhs, scope)
 	case ast.Return:
 		if value, ok := stmt.value.?; ok {
 			append(stmts, instr(.ret, gen_expr(stmts, value, scope)))
@@ -115,6 +118,7 @@ data :: proc(name: string, args: ..iris.DataValue) -> (d: iris.Data) {
 
 gen_expr :: proc(stmts: ^[dynamic]iris.Stmt, expr: ast.Expr, scope: ast.Scope) -> iris.ArgValue {
 	type := from_type(check.expr_type(expr, scope))
+	deref_type := from_type(check.expr_type(expr, scope), true)
 
 	#partial switch expr in expr {
 	case ast.Atom:
@@ -162,6 +166,18 @@ gen_expr :: proc(stmts: ^[dynamic]iris.Stmt, expr: ast.Expr, scope: ast.Scope) -
 			fmt.println("unimpl", expr.op)
 			unimplemented()
 		}
+	case ^ast.Un:
+		#partial switch expr.op {
+		case .Deref:
+			fmt.println(expr, check.expr_type(expr, scope), type, deref_type)
+			v := gen_expr(stmts, expr.expr, scope)
+			iv := new_iv()
+			append(stmts, local_def(iv, deref_type, instr(.load, v)))
+			return {deref_type, iris.Local(iv)}
+		case:
+			fmt.println("unimpl", expr)
+			unimplemented()
+		}
 	case:
 		fmt.println("unimpl", expr)
 		unimplemented()
@@ -193,9 +209,12 @@ from_args :: proc(stmts: ^[dynamic]iris.Stmt, args: []ast.Expr, scope: ast.Scope
 	return args_arr[:]
 }
 
-from_type :: proc(type: ast.Type) -> iris.Type {
+from_type :: proc(type: ast.Type, deref := false) -> iris.Type {
 	switch it in type {
 	case ast.Pointer:
+		if deref {
+			return from_type(it^, true)
+		}
 		return .ptr
 	case ast.Variadic:
 		unimplemented()

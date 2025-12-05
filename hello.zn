@@ -1,8 +1,7 @@
-#foreign("stdio.h") printf(fmtstr string, args ..any) i32
+#foreign("") printf(fmtstr string, args ..any) i32
 
 main() i32 {
-	z i32 = 2*(34+35)
-	swag bool = true
-	printf("%d\n", z)
+	i i32 = 0
+	i = i + 1
 	return 0
 }

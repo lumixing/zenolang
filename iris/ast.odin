@@ -74,6 +74,9 @@ InstrMnem :: enum {
 	clt,
 	jnz,
 	jmp,
+
+	store,
+	load,
 }
 
 Arg :: union #no_nil {

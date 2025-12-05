@@ -92,7 +92,7 @@ get_func :: proc(name: string, scope: ast.Scope) -> Maybe(ast.FuncSign) {
 expr_type :: proc(expr: ast.Expr, scope: ast.Scope) -> ast.Type {
 	switch expr in expr {
 	case ^ast.Expr:
-		return expr_type(expr, scope)
+		return expr_type(expr^, scope)
 	case ast.Atom:
 		switch atom in expr {
 		case ast.Literal:
